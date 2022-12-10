@@ -8,7 +8,10 @@
 #include <string.h>
 #include <errno.h>
 #include <stdio.h>
+
 #define MAX_WORD_LENGTH 31
+#define MAX_FILENAME_SIZE 24
+#define MAX_FSIZE_SIZE 10
 
 int fd, errno, errcode;
 ssize_t n;
@@ -222,6 +225,7 @@ void play(){
         printf("ERRORc\n");
 }
 
+
 void guess(){
     char word[MAX_WORD_LENGTH];
     scanf(" %s", word);
@@ -287,6 +291,7 @@ void guess(){
 
 }
 
+
 void scoreboard(){
     sprintf(buffer, "GSB\n");
 
@@ -300,7 +305,7 @@ void scoreboard(){
     ssize_t nleft = strlen(buffer);
     char *ptr = buffer;
     while(nleft>0){
-        n = write(fd, buffer, strlen(buffer));
+        n = write(fd, ptr, strlen(buffer));
         if(n == -1){
             fprintf(stderr, "error: %s\n", strerror(errno));
             exit(1);
@@ -331,13 +336,11 @@ void scoreboard(){
             ptr += strlen(filename) + strlen(filesize_str) + 2;
             printf("%s", ptr);
             ssize_t nread = n - strlen(filename) - strlen(filesize_str) - 9;
+            
             fwrite(ptr, 1, nread, fp);
             nleft = filesize - nread;
             while (nleft > 0){
                 n = read_from_TCP_socket(128);
-                if (nleft < 128){
-                    n--;
-                }
                 
                 nleft -= n;
                 nread += n;
@@ -345,6 +348,8 @@ void scoreboard(){
                 printf("%s", buffer);
             }
             fclose(fp);
+            close_socket();
+            
         } else if(!strcmp(buf, "EMPTY")){
             printf("No game was yet won by any player\n");
         }
@@ -354,7 +359,6 @@ void scoreboard(){
     } else {
         printf("ERROR\n");
     }
-    close_socket();
 }
 
 
@@ -371,7 +375,7 @@ void hint(){
     ssize_t nleft = strlen(buffer);
     char *ptr = buffer;
     while(nleft>0){
-        n = write(fd, buffer, strlen(buffer));
+        n = write(fd, ptr, strlen(buffer));
         if(n == -1){
             fprintf(stderr, "error: %s\n", strerror(errno));
             exit(1);
@@ -389,21 +393,22 @@ void hint(){
         ptr += 4;
         sscanf(ptr, "%s ", buf);
         if(!strcmp(buf, "OK")){
-            char filename[22];
-            char filesize_str[8];
+            char filename[22], filesize_str[8];
+
             ptr += 3;
             sscanf(ptr, "%s %s", filename, filesize_str);
             ssize_t filesize = atoi(filesize_str);
-            printf("received hint file: %s (%zu)\n", filename, filesize);
+
             FILE *fp = fopen(filename, "w");
             if(fp == NULL){
                 fprintf(stderr, "error: %s\n", strerror(errno));
                 exit(1);
             }
+
             ptr += strlen(filename) + strlen(filesize_str) + 2;
-            n -= strlen(filename) + strlen(filesize_str) + 9; //------------------------ tirei o nread porque nao era necessario
-            fwrite(ptr, 1, n, fp);
-            nleft = filesize - n;
+            ssize_t nread = n - strlen(filename) - strlen(filesize_str) - 9; // bytes already read
+            fwrite(ptr, 1, nread, fp);
+            nleft = filesize - nread;
             while (nleft > 0){
                 n = read_from_TCP_socket(128);
                 
@@ -418,6 +423,73 @@ void hint(){
     }
     close_socket();
 }
+
+
+void state(){
+    sprintf(buffer, "STA %s\n", PLID);
+
+    create_TCP_socket();
+    n = connect(fd, res->ai_addr, res->ai_addrlen);
+    if(n == -1){
+        fprintf(stderr, "error: %s\n", strerror(errno));
+        exit(1);
+    }
+
+    ssize_t nleft = strlen(buffer);
+    char *ptr = buffer;
+    while(nleft>0){
+        n = write(fd, ptr, strlen(buffer));
+        if(n == -1){
+            fprintf(stderr, "error: %s\n", strerror(errno));
+            exit(1);
+        }
+        nleft-=n;
+        ptr+=n;
+    }
+
+    n = read_from_TCP_socket(128);
+    char buf[4];
+    ptr = buffer;
+    sscanf(buffer, "%s ", buf);
+
+    if(!strcmp(buf, "RST")){
+        ptr += 4;
+        sscanf(ptr, "%s ", buf);
+        if(!strcmp(buf, "ACT") || !strcmp(buf, "FIN")){
+            char filename[MAX_FILENAME_SIZE], filesize_str[MAX_FSIZE_SIZE];
+
+            ptr += 4;
+            sscanf(ptr, "%s %s", filename, filesize_str);
+            ssize_t filesize = atoi(filesize_str);
+
+            FILE *fp = fopen(filename, "w");
+            if(fp == NULL){
+                fprintf(stderr, "error: %s\n", strerror(errno));
+                exit(1);
+            }
+
+            ptr += strlen(filename) + strlen(filesize_str) + 2;
+            printf("%s", ptr);
+            ssize_t nread = n - strlen(filename) - strlen(filesize_str) - 9; // bytes already read
+            fwrite(ptr, 1, nread, fp);
+            nleft = filesize - nread;
+            while (nleft > 0){
+                n = read_from_TCP_socket(128);
+                
+                nleft -= n;
+                fwrite(buffer, 1, n, fp);
+                printf("%s", buffer);
+            }
+            fclose(fp);
+        }
+        else if(!strcmp(buf, "NOK")){
+            printf("No games active or finished for you :/\n");
+        }
+    }
+    close_socket();
+
+}
+
 
 void quit(){
     sprintf(buffer, "QUT %s\n", PLID);
@@ -449,6 +521,7 @@ void quit(){
     } else
         printf("ERROR\n");
 }
+
 
 int main(int argc, char** argv){
     // Read hostname and port
@@ -486,10 +559,10 @@ int main(int argc, char** argv){
             scoreboard();
         }
         else if(!strcmp(command, "hint") || !strcmp(command, "h")){
-            if(trial_number>0)
-                hint();
-            else
-                printf("ERROR\n");
+            hint();
+        }
+        else if(!strcmp(command, "state") || !strcmp(command, "st")){
+            state();
         }
         else if(strcmp(command, "quit")==0 || strcmp(command, "q")==0){
             if(trial_number>0)
