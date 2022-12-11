@@ -12,6 +12,8 @@
 #define MAX_WORD_LENGTH 31
 #define MAX_FILENAME_SIZE 24
 #define MAX_FSIZE_SIZE 10
+#define MAX_READ_SIZE 128
+#define TIMEOUT 5000
 
 int fd, errno, errcode;
 ssize_t n;
@@ -19,13 +21,11 @@ socklen_t addrlen;
 struct addrinfo hints, *res;
 struct sockaddr_in addr;
 
-char buffer[129], PLID[7], game[MAX_WORD_LENGTH];
-int trial_number;
-
 char* hostname = NULL;
 char* port = "58082";
 
 void create_UDP_socket(){
+    int timeout = TIMEOUT;
     
     fd = socket(AF_INET, SOCK_DGRAM, 0);
     if(fd == -1){
@@ -41,9 +41,12 @@ void create_UDP_socket(){
         fprintf(stderr, "error: %s\n", gai_strerror(errcode));
         exit(1);
     }
+
+    setsockopt(fd, SOL_SOCKET, SO_SNDTIMEO, (const char *) &timeout, sizeof(timeout));
 }
 
 void create_TCP_socket(){
+    int timeout = TIMEOUT;
     
     fd = socket(AF_INET, SOCK_STREAM, 0);
     if(fd == -1){
@@ -59,6 +62,8 @@ void create_TCP_socket(){
         fprintf(stderr, "error: %s\n", gai_strerror(errcode));
         exit(1);
     }
+    
+    setsockopt(fd, SOL_SOCKET, SO_SNDTIMEO, (const char *) &timeout, sizeof(timeout));
 }
 
 void close_socket(){
@@ -66,7 +71,7 @@ void close_socket(){
     close(fd);
 }
 
-ssize_t read_from_TCP_socket(ssize_t nleft){
+ssize_t read_from_TCP_socket(char *buffer, ssize_t nleft){
     char *ptr = buffer;
     ssize_t total_read = 0;
     while(nleft > 0){
@@ -86,7 +91,7 @@ ssize_t read_from_TCP_socket(ssize_t nleft){
 }
 
 
-void start(){
+void start(char *buffer, char *PLID, char *game, int *trial_number){
     scanf("%s", PLID);
     sprintf(buffer, "SNG %s\n", PLID);
 
@@ -99,26 +104,27 @@ void start(){
     }
 
     addrlen = sizeof(addr);
-    n = recvfrom(fd, buffer, 128, 0, (struct sockaddr*)&addr, &addrlen);
+    n = recvfrom(fd, buffer, MAX_READ_SIZE, 0, (struct sockaddr*)&addr, &addrlen);
     if(n == -1){
         fprintf(stderr, "error: %s\n", strerror(errno));
         exit(1);
     }
     buffer[n]='\0';
 
+
     close_socket();
 
     char buf1[4], buf2[4];
     int n_let, errors;
     sscanf(buffer, "%s %s %d %d\n", buf1, buf2, &n_let, &errors);
-    if(strcmp(buf1, "RSG")==0){
-        if(strcmp(buf2, "OK") == 0){
+    if(!strcmp(buf1, "RSG")){
+        if(!strcmp(buf2, "OK")){
             memset(game, '_', n_let);
             game[n_let] = '\0';
             printf("New game started (max %d errors): %s\n", errors, game);
-            trial_number = 1;
+            *trial_number = 1;
         }
-        else if(strcmp(buf2, "NOK") == 0)
+        else if(!strcmp(buf2, "NOK"))
             printf("Error: game already started\n");
         else
             printf("ERROR\n");
@@ -129,10 +135,10 @@ void start(){
 }
 
 
-void play(){
+void play(char *buffer, char *PLID, char *game, int *trial_number){
     char letter;
     scanf(" %c", &letter);
-    sprintf(buffer, "PLG %s %c %d\n", PLID, letter, trial_number);
+    sprintf(buffer, "PLG %s %c %d\n", PLID, letter, *trial_number);
 
     create_UDP_socket();
 
@@ -143,7 +149,7 @@ void play(){
     }
 
     addrlen = sizeof(addr);
-    n = recvfrom(fd, buffer, 128, 0, (struct sockaddr*)&addr, &addrlen);
+    n = recvfrom(fd, buffer, MAX_READ_SIZE, 0, (struct sockaddr*)&addr, &addrlen);
     if(n == -1){
         fprintf(stderr, "error: %s\n", strerror(errno));
         exit(1);
@@ -155,17 +161,17 @@ void play(){
     char buf[4], *ptr = buffer;
     int trial;
     sscanf(buffer, "%s ", buf);
-    if(strcmp(buf, "RLG")==0){
+    if(!strcmp(buf, "RLG")){
         ptr += 4;
         sscanf(ptr, "%s ", buf);
-        if(strcmp(buf, "OK") == 0){
+        if(!strcmp(buf, "OK")){
             int n_let, pos;
             ptr += 3;
             sscanf(ptr, "%d %d", &trial, &n_let);
-            if (trial != trial_number)
+            if (trial != *trial_number)
                 printf("ERROR\n");
             else {
-                trial_number++;
+                *trial_number = *trial_number + 1;
                 ptr += 4;
                 for(int i = 0; i<n_let; i++){
                     sscanf(ptr, "%d", &pos);
@@ -175,20 +181,20 @@ void play(){
                 printf("Yes, \"%c\" is part of the word: %s\n", letter, game);
             }
 
-        } else if(strcmp(buf, "NOK") == 0){
+        } else if(!strcmp(buf, "NOK")){
             ptr += 4;
             sscanf(ptr, "%d", &trial);
-            if (trial != trial_number)
+            if (trial != *trial_number)
                 printf("ERROR\n");
             else{
                 printf("No, \"%c\" is not part of the word: %s\n", letter, game);
-                trial_number++;
+                *trial_number = *trial_number + 1;
             }
 
         } else if(!strcmp(buf, "WIN")){
             ptr += 4;
             sscanf(ptr, "%d", &trial);
-            if(trial != trial_number)
+            if(trial != *trial_number)
                 printf("ERROR\n");
             else{
                 for(int i=0; i < sizeof(game); i++){
@@ -196,24 +202,24 @@ void play(){
                         game[i] = letter;
                 }
                 printf("WELL DONE! You guessed: %s\n", game);
-                trial_number = 0;
+                *trial_number = 0;
             }
 
         } else if(!strcmp(buf, "DUP")){
             ptr += 4;
             sscanf(ptr, "%d", &trial);
-            if (trial != trial_number)
+            if (trial != ((*trial_number)-1))
                 printf("ERROR\n");
             else
                 printf("The letter has been inserted before\n");
         } else if(!strcmp(buf, "OVR")){
             ptr += 4;
             sscanf(ptr, "%d", &trial);
-            if (trial != trial_number)
+            if (trial != *trial_number)
                 printf("TRIAL NUMBER ERROR\n");
             else{
                 printf("No, \"%c\" is not part of the word: %s\nYou have reached the maximum error limit GG\n", letter, game);
-                trial_number = 0;
+                *trial_number = 0;
             }
         } else if(!strcmp(buf, "INV")){
             printf("Trial number is not valid\n");
@@ -222,15 +228,14 @@ void play(){
         else
             printf("ERROR\n");
     } else 
-        printf("ERRORc\n");
+        printf("ERROR\n");
 }
 
 
-void guess(){
+void guess(char *buffer, char *PLID, int *trial_number){
     char word[MAX_WORD_LENGTH];
     scanf(" %s", word);
-    printf("word: %s\n", word);
-    sprintf(buffer, "PWG %s %s %d\n", PLID, word, trial_number);
+    sprintf(buffer, "PWG %s %s %d\n", PLID, word, *trial_number);
 
     create_UDP_socket();
 
@@ -240,7 +245,7 @@ void guess(){
         exit(1);
     }
     addrlen = sizeof(addr);
-    n = recvfrom(fd, buffer, 128, 0, (struct sockaddr*)&addr, &addrlen);
+    n = recvfrom(fd, buffer, MAX_READ_SIZE, 0, (struct sockaddr*)&addr, &addrlen);
     if(n == -1){
         fprintf(stderr, "error: %s\n", strerror(errno));
         exit(1);
@@ -259,30 +264,30 @@ void guess(){
         if(!strcmp(buf, "WIN")){
             ptr += 4;
             sscanf(ptr, "%d", &trial);
-            if(trial != trial_number)
+            if(trial != *trial_number)
                 printf("ERROR\n");
             else{
                 printf("WELL DONE! You guessed: %s\n", word);
-                trial_number = 0;
+                *trial_number = 0;
             }
         } else if(!strcmp(buf, "NOK")){
             ptr += 4;
             sscanf(ptr, "%d", &trial);
-            if (trial != trial_number)
+            if (trial != *trial_number)
                 printf("ERROR\n");
             else{
                 printf("No, this word is not the correct answer :/\n");
-                trial_number++;
+                *trial_number = *trial_number + 1;
             }
 
         } else if(!strcmp(buf, "OVR")){
             ptr += 4;
             sscanf(ptr, "%d", &trial);
-            if (trial != trial_number)
+            if (trial != *trial_number)
                 printf("ERROR\n");
             else{
                 printf("No, %s is not the correct answer :/\nYou have reached the maximum error limit GG\n", word);
-                trial_number = 0;
+                *trial_number = 0;
             }
         } else
             printf("ERROR\n");
@@ -292,7 +297,7 @@ void guess(){
 }
 
 
-void scoreboard(){
+void scoreboard(char *buffer, char *PLID){
     sprintf(buffer, "GSB\n");
 
     create_TCP_socket();
@@ -314,7 +319,7 @@ void scoreboard(){
         ptr+=n;
     }
 
-    n = read_from_TCP_socket(128);
+    n = read_from_TCP_socket(buffer, MAX_READ_SIZE);
     char buf[4];
     ptr = buffer;
     sscanf(buffer, "%s ", buf);
@@ -335,15 +340,15 @@ void scoreboard(){
             }
             ptr += strlen(filename) + strlen(filesize_str) + 2;
             printf("%s", ptr);
-            ssize_t nread = n - strlen(filename) - strlen(filesize_str) - 9;
+
+            n -= strlen(filename) + strlen(filesize_str) + 9;
             
-            fwrite(ptr, 1, nread, fp);
-            nleft = filesize - nread;
+            fwrite(ptr, 1, n, fp);
+            nleft = filesize - n;
             while (nleft > 0){
-                n = read_from_TCP_socket(128);
+                n = read_from_TCP_socket(buffer, MAX_READ_SIZE);
                 
                 nleft -= n;
-                nread += n;
                 fwrite(buffer, 1, n, fp);
                 printf("%s", buffer);
             }
@@ -362,7 +367,7 @@ void scoreboard(){
 }
 
 
-void hint(){
+void hint(char *buffer, char *PLID){
     sprintf(buffer, "GHL %s\n", PLID);
 
     create_TCP_socket();
@@ -384,7 +389,7 @@ void hint(){
         ptr+=n;
     }
 
-    n = read_from_TCP_socket(128);
+    n = read_from_TCP_socket(buffer, MAX_READ_SIZE);
     char buf[4];
     ptr = buffer;
     sscanf(buffer, "%s ", buf);
@@ -406,16 +411,17 @@ void hint(){
             }
 
             ptr += strlen(filename) + strlen(filesize_str) + 2;
-            ssize_t nread = n - strlen(filename) - strlen(filesize_str) - 9; // bytes already read
-            fwrite(ptr, 1, nread, fp);
-            nleft = filesize - nread;
+            n -= strlen(filename) + strlen(filesize_str) + 9; // bytes already read
+            fwrite(ptr, 1, n, fp);
+            nleft = filesize - n;
             while (nleft > 0){
-                n = read_from_TCP_socket(128);
+                n = read_from_TCP_socket(buffer, MAX_READ_SIZE);
                 
                 nleft -= n;
                 fwrite(buffer, 1, n, fp);
             }
             fclose(fp);
+            printf("received hint file: %s (%zu)\n", filename, filesize);
         }
         else if(!strcmp(buf, "NOK")){
             printf("No hint file available\n");
@@ -425,7 +431,7 @@ void hint(){
 }
 
 
-void state(){
+void state(char *buffer, char *PLID){
     sprintf(buffer, "STA %s\n", PLID);
 
     create_TCP_socket();
@@ -447,7 +453,7 @@ void state(){
         ptr+=n;
     }
 
-    n = read_from_TCP_socket(128);
+    n = read_from_TCP_socket(buffer, MAX_READ_SIZE);
     char buf[4];
     ptr = buffer;
     sscanf(buffer, "%s ", buf);
@@ -470,11 +476,11 @@ void state(){
 
             ptr += strlen(filename) + strlen(filesize_str) + 2;
             printf("%s", ptr);
-            ssize_t nread = n - strlen(filename) - strlen(filesize_str) - 9; // bytes already read
-            fwrite(ptr, 1, nread, fp);
-            nleft = filesize - nread;
+            n -= strlen(filename) + strlen(filesize_str) + 9; // bytes already read
+            fwrite(ptr, 1, n, fp);
+            nleft = filesize - n;
             while (nleft > 0){
-                n = read_from_TCP_socket(128);
+                n = read_from_TCP_socket(buffer, MAX_READ_SIZE);
                 
                 nleft -= n;
                 fwrite(buffer, 1, n, fp);
@@ -491,7 +497,7 @@ void state(){
 }
 
 
-void quit(){
+void quit(char *buffer, char *PLID, int *trial_number){
     sprintf(buffer, "QUT %s\n", PLID);
 
     create_UDP_socket();
@@ -500,10 +506,10 @@ void quit(){
         fprintf(stderr, "error: %s\n", strerror(errno));
         exit(1);
     }
-    trial_number=0;
+    *trial_number=0;
 
     addrlen = sizeof(addr);
-    n = recvfrom(fd, buffer, 128, 0, (struct sockaddr*)&addr, &addrlen);
+    n = recvfrom(fd, buffer, MAX_READ_SIZE, 0, (struct sockaddr*)&addr, &addrlen);
     if(n == -1){
         fprintf(stderr, "error: %s\n", strerror(errno));
         exit(1);
@@ -514,7 +520,7 @@ void quit(){
 
     char buf[4];
     sscanf(buffer, "%s ", buf);
-    if(strcmp(buf, "RQT")==0){
+    if(!strcmp(buf, "RQT")){
         sscanf(buffer, "%*s %s ", buf);
         if(strcmp(buf, "OK") != 0)
             printf("ERROR\n");
@@ -524,53 +530,53 @@ void quit(){
 
 
 int main(int argc, char** argv){
+    char buffer[MAX_READ_SIZE + 1], PLID[7], game[MAX_WORD_LENGTH];
+    int trial_number = 0;
+
     // Read hostname and port
     for(int i=1; i < argc; i+=2){
-        if(strcmp(argv[i], "-n")==0)
+        if(!strcmp(argv[i], "-n"))
             hostname = argv[i+1];
-        else if(strcmp(argv[i], "-p")==0){
+        else if(!strcmp(argv[i], "-p")){
             port = argv[i+1];
         }
     }
     if(hostname == NULL){
-        char buf[128];
-        if(gethostname(buf, 128)==-1)
+        if(gethostname(buffer, MAX_READ_SIZE)==-1)
             fprintf(stderr, "error: %s\n", strerror(errno));
         else
-            hostname = buf;
+            hostname = buffer;
     }
-
-    trial_number = 0;
 
     char command[10];
     while(1){
         // Read command
         scanf("%s", command);
-        if(strcmp(command, "start")==0 || strcmp(command, "sg")==0){
-            start();
+        if(!strcmp(command, "start") || !strcmp(command, "sg")){
+            start(buffer, PLID, game, &trial_number);
         }
-        else if(strcmp(command, "play")==0 || strcmp(command, "pl")==0){
-            play();
+        else if(!strcmp(command, "play") || !strcmp(command, "pl")){
+            play(buffer, PLID, game, &trial_number);
         }
         else if(!strcmp(command, "guess") || !strcmp(command, "gw")){
-            guess();
+            guess(buffer, PLID, &trial_number);
         }
         else if(!strcmp(command, "scoreboard") || !strcmp(command, "sb")){
-            scoreboard();
+            scoreboard(buffer, PLID);
         }
         else if(!strcmp(command, "hint") || !strcmp(command, "h")){
-            hint();
+            hint(buffer, PLID);
         }
         else if(!strcmp(command, "state") || !strcmp(command, "st")){
-            state();
+            state(buffer, PLID);
         }
-        else if(strcmp(command, "quit")==0 || strcmp(command, "q")==0){
+        else if(!strcmp(command, "quit") || !strcmp(command, "q")){
             if(trial_number>0)
-                quit();
+                quit(buffer, PLID, &trial_number);
         }
-        else if(strcmp(command, "exit")==0){
+        else if(!strcmp(command, "exit")){
             if(trial_number>0)
-                quit();
+                quit(buffer, PLID, &trial_number);
             break;
                 
         }
