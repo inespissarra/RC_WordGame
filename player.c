@@ -9,11 +9,6 @@
 #include <errno.h>
 #include <stdio.h>
 
-#define MAX_WORD_LENGTH 31
-#define MAX_FILENAME_SIZE 24
-#define MAX_FSIZE_SIZE 10
-#define MAX_READ_SIZE 128
-#define TIMEOUT 5000
 
 int fd, errno, errcode;
 ssize_t n;
