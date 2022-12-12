@@ -5,6 +5,7 @@
 #define MAX_FILENAME_SIZE 24
 #define MAX_FSIZE_SIZE 10
 #define MAX_READ_SIZE 128
+#define MAX_PLID_SIZE 6
 #define TIMEOUT 5000
 
 #endif
