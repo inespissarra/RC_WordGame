@@ -12,7 +12,7 @@ int main(int argc, char** argv){
     char* hostname = NULL;
     char* port = "58082";
 
-    char buffer[MAX_READ_SIZE + 1], PLID[7], game[MAX_WORD_LENGTH];
+    char buffer[MAX_READ_SIZE + 1], PLID[MAX_PLID_SIZE + 1], game[MAX_WORD_LENGTH + 1];
     int trial_number = 0;
 
     // Read hostname and port
