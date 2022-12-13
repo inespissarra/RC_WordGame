@@ -95,7 +95,6 @@ void start(char* hostname, char* port, char *buffer, char *PLID, char *game, int
     }
     buffer[n]='\0';
 
-
     close_socket();
 
     char buf1[4], buf2[4];
@@ -196,6 +195,7 @@ void play(char* hostname, char* port, char *buffer, char *PLID, char *game, int 
                 printf("ERROR\n");
             else
                 printf("The letter has been inserted before\n");
+
         } else if(!strcmp(buf, "OVR")){
             ptr += 4;
             sscanf(ptr, "%d", &trial);
@@ -205,6 +205,7 @@ void play(char* hostname, char* port, char *buffer, char *PLID, char *game, int 
                 printf("No, \"%c\" is not part of the word: %s\nYou have reached the maximum error limit GG\n", letter, game);
                 *trial_number = 0;
             }
+            
         } else if(!strcmp(buf, "INV")){
             printf("Trial number is not valid\n");
         }
@@ -281,6 +282,45 @@ void guess(char* hostname, char* port, char *buffer, char *PLID, int *trial_numb
 }
 
 
+void read_file(char response[3], char *ptr, char *buffer){
+    char filename[MAX_FILENAME_SIZE], filesize_str[MAX_FSIZE_SIZE];
+
+    int status_length = 3;
+    if (!strcmp(response, "RST"))
+        status_length = 4; 
+    ptr += status_length;
+
+    sscanf(ptr, "%s %s", filename, filesize_str);
+    ssize_t filesize = atoi(filesize_str), nleft;
+
+    FILE *fp = fopen(filename, "w");
+    if(fp == NULL){
+        fprintf(stderr, "error: %s\n", strerror(errno));
+        exit(1);
+    }
+
+    ptr += strlen(filename) + strlen(filesize_str) + 2;
+    if (strcmp(response, "RHL"))
+        printf("%s", ptr);
+
+    n -= strlen(filename) + strlen(filesize_str) + 6 + status_length; // bytes already read
+    fwrite(ptr, 1, n, fp);
+
+    nleft = filesize - n;
+    while (nleft > 0){
+        n = read_from_TCP_socket(buffer, MAX_READ_SIZE);
+        nleft -= n;
+        fwrite(buffer, 1, n, fp);
+        if (strcmp(response, "RHL"))
+            printf("%s", buffer);
+    }
+    fclose(fp);
+
+    if (!strcmp(response, "RHL"))
+        printf("received hint file: %s %s\n", filename, filesize_str);
+}
+
+
 void scoreboard(char* hostname, char* port, char *buffer, char *PLID){
     sprintf(buffer, "GSB\n");
 
@@ -312,33 +352,7 @@ void scoreboard(char* hostname, char* port, char *buffer, char *PLID){
         ptr += 4;
         sscanf(ptr, "%s ", buf);
         if(!strcmp(buf, "OK")){
-            char filename[22], filesize_str[8];
-            ptr += 3;
-            sscanf(ptr, "%s %s", filename, filesize_str);
-            ssize_t filesize = atoi(filesize_str);
-            printf("file name: %s, file size: %zu\n", filename, filesize);
-            FILE *fp = fopen(filename, "w");
-            if(fp == NULL){
-                fprintf(stderr, "error: %s\n", strerror(errno));
-                exit(1);
-            }
-            ptr += strlen(filename) + strlen(filesize_str) + 2;
-            printf("%s", ptr);
-
-            n -= strlen(filename) + strlen(filesize_str) + 9;
-            
-            fwrite(ptr, 1, n, fp);
-            nleft = filesize - n;
-            while (nleft > 0){
-                n = read_from_TCP_socket(buffer, MAX_READ_SIZE);
-                
-                nleft -= n;
-                fwrite(buffer, 1, n, fp);
-                printf("%s", buffer);
-            }
-            fclose(fp);
-            close_socket();
-            
+            read_file("RSB", ptr, buffer);
         } else if(!strcmp(buf, "EMPTY")){
             printf("No game was yet won by any player\n");
         }
@@ -348,6 +362,7 @@ void scoreboard(char* hostname, char* port, char *buffer, char *PLID){
     } else {
         printf("ERROR\n");
     }
+    close_socket();
 }
 
 
@@ -382,30 +397,7 @@ void hint(char* hostname, char* port, char *buffer, char *PLID){
         ptr += 4;
         sscanf(ptr, "%s ", buf);
         if(!strcmp(buf, "OK")){
-            char filename[22], filesize_str[8];
-
-            ptr += 3;
-            sscanf(ptr, "%s %s", filename, filesize_str);
-            ssize_t filesize = atoi(filesize_str);
-
-            FILE *fp = fopen(filename, "w");
-            if(fp == NULL){
-                fprintf(stderr, "error: %s\n", strerror(errno));
-                exit(1);
-            }
-
-            ptr += strlen(filename) + strlen(filesize_str) + 2;
-            n -= strlen(filename) + strlen(filesize_str) + 9; // bytes already read
-            fwrite(ptr, 1, n, fp);
-            nleft = filesize - n;
-            while (nleft > 0){
-                n = read_from_TCP_socket(buffer, MAX_READ_SIZE);
-                
-                nleft -= n;
-                fwrite(buffer, 1, n, fp);
-            }
-            fclose(fp);
-            printf("received hint file: %s (%zu)\n", filename, filesize);
+            read_file("RHL", ptr, buffer);
         }
         else if(!strcmp(buf, "NOK")){
             printf("No hint file available\n");
@@ -446,31 +438,7 @@ void state(char* hostname, char* port, char *buffer, char *PLID){
         ptr += 4;
         sscanf(ptr, "%s ", buf);
         if(!strcmp(buf, "ACT") || !strcmp(buf, "FIN")){
-            char filename[MAX_FILENAME_SIZE], filesize_str[MAX_FSIZE_SIZE];
-
-            ptr += 4;
-            sscanf(ptr, "%s %s", filename, filesize_str);
-            ssize_t filesize = atoi(filesize_str);
-
-            FILE *fp = fopen(filename, "w");
-            if(fp == NULL){
-                fprintf(stderr, "error: %s\n", strerror(errno));
-                exit(1);
-            }
-
-            ptr += strlen(filename) + strlen(filesize_str) + 2;
-            printf("%s", ptr);
-            n -= strlen(filename) + strlen(filesize_str) + 9; // bytes already read
-            fwrite(ptr, 1, n, fp);
-            nleft = filesize - n;
-            while (nleft > 0){
-                n = read_from_TCP_socket(buffer, MAX_READ_SIZE);
-                
-                nleft -= n;
-                fwrite(buffer, 1, n, fp);
-                printf("%s", buffer);
-            }
-            fclose(fp);
+            read_file("RST", ptr, buffer);
         }
         else if(!strcmp(buf, "NOK")){
             printf("No games active or finished for you :/\n");
