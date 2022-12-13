@@ -41,22 +41,23 @@ void start(){
     sscanf(ptr, "%s", PLID);
     FILE *fp;
     char filename[MAX_PLAYER_FILENAME_SIZE];
-    sprintf(filename, "%s.txt", PLID);
-    if(access(filename, F_OK)== 0){
+    sprintf(filename, "GAME_%s.txt", PLID);
+    if(!access(filename, F_OK)){ // File exists
         fp = fopen(filename, "r");
         fgets(buffer, MAX_READ_SIZE, fp);
-        if(strcmp("trial_number=0\n", buffer) && strcmp("trial_number=1", buffer)){
+        sscanf(buffer, "%s", word);
+        if(fgets(buffer, MAX_READ_SIZE, fp)!=NULL){
             fclose(fp);
             return;
         }
+        fclose(fp);
     } else{
+        random_word();
+        sscanf(buffer, "%s", word);
         fp = fopen(filename, "w");
-        fprintf(fp, "trial_number=1\n");
+        fprintf(fp, "%s", buffer);
+        fclose(fp);
     }
-    random_word();
-    sscanf(buffer, "%s", word);
-    fprintf(fp, "word and hint = %s", buffer);
-    fclose(fp);
     int max_errors;
     int len = strlen(word);
     if(len < 7)
@@ -75,7 +76,31 @@ void start(){
     }
 }
 
-
+void play(){
+    char *ptr = buffer + 4;
+    char letter;
+    int trial_number;
+    char word[MAX_WORD_LENGTH + 1];
+    char PLID[MAX_PLID_SIZE + 1];
+    n = sscanf(ptr, "%s %c %d\n", PLID, &letter, &trial_number);
+    if(n==3){
+        FILE *fp;
+        char filename[MAX_PLAYER_FILENAME_SIZE];
+        sprintf(filename, "%s.txt", PLID);
+        if((fp = fopen(filename, "r+")) != NULL){
+            fgets(buffer, MAX_READ_SIZE, fp);
+        } else{
+        sprintf(buffer, "RLG ERR\n");
+        }
+    } else{
+        sprintf(buffer, "RLG ERR\n");
+    }
+    n = sendto(fd, buffer, strlen(buffer), 0, res->ai_addr, res->ai_addrlen);
+    if(n == -1){
+        fprintf(stderr, "error: %s\n", strerror(errno));
+        exit(1);
+    }
+}
 
 void UDP_connect(){
 
