@@ -46,8 +46,14 @@ void start(){
         fp = fopen(filename, "r");
         fgets(buffer, MAX_READ_SIZE, fp);
         sscanf(buffer, "%s", word);
-        if(fgets(buffer, MAX_READ_SIZE, fp)!=NULL){
+        if(fgets(buffer, MAX_READ_SIZE, fp)!=NULL){ // Check if no play was yet received
             fclose(fp);
+            sprintf(buffer, "RSG NOK\n");
+            n = sendto(fd, buffer, strlen(buffer), 0, res->ai_addr, res->ai_addrlen);
+            if(n == -1){
+                fprintf(stderr, "error: %s\n", strerror(errno));
+                exit(1);
+            }
             return;
         }
         fclose(fp);
@@ -83,14 +89,15 @@ void play(){
     char word[MAX_WORD_LENGTH + 1];
     char PLID[MAX_PLID_SIZE + 1];
     n = sscanf(ptr, "%s %c %d\n", PLID, &letter, &trial_number);
-    if(n==3){
+    if(n==3){ // Correct format
         FILE *fp;
         char filename[MAX_PLAYER_FILENAME_SIZE];
         sprintf(filename, "%s.txt", PLID);
         if((fp = fopen(filename, "r+")) != NULL){
             fgets(buffer, MAX_READ_SIZE, fp);
+            // TODO
         } else{
-        sprintf(buffer, "RLG ERR\n");
+            sprintf(buffer, "RLG ERR\n");
         }
     } else{
         sprintf(buffer, "RLG ERR\n");
