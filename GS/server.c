@@ -11,7 +11,6 @@
 
 #include "constants.h"
 
-int errno;
 
 int fd, newfd, errno, errcode;
 ssize_t n;
@@ -22,10 +21,10 @@ struct sockaddr_in addr;
 char *word_file;
 int n_lines;
 char buffer[MAX_READ_SIZE + 1];
-char* port = "58082";
+char *port = "58082";
 int verbose = 0;
 
-void random_word(){
+void random_word(){ // --------- afinal é sequencial
     int random_line = rand() % n_lines;
     FILE *fp = fopen(word_file, "r");
     for(int i=0; i<random_line; i++)
@@ -49,7 +48,7 @@ void start(){
         if(fgets(buffer, MAX_READ_SIZE, fp)!=NULL){ // Check if no play was yet received
             fclose(fp);
             sprintf(buffer, "RSG NOK\n");
-            n = sendto(fd, buffer, strlen(buffer), 0, res->ai_addr, res->ai_addrlen);
+            n = sendto(fd, buffer, strlen(buffer), 0, (struct sockaddr*)&addr, addrlen);
             if(n == -1){
                 fprintf(stderr, "error: %s\n", strerror(errno));
                 exit(1);
@@ -69,13 +68,13 @@ void start(){
     if(len < 7)
         max_errors = 7;
     else if(len < 11)
-        max_errors = 9;
+        max_errors = 8;
     else
         max_errors = 9;
 
-    sprintf(buffer, "RSG OK %d %d\n", &len, &max_errors);
+    sprintf(buffer, "RSG OK %d %d\n", len, max_errors);
     
-    n = sendto(fd, buffer, strlen(buffer), 0, res->ai_addr, res->ai_addrlen);
+    n = sendto(fd, buffer, strlen(buffer), 0, (struct sockaddr*)&addr, addrlen);
     if(n == -1){
         fprintf(stderr, "error: %s\n", strerror(errno));
         exit(1);
@@ -102,15 +101,18 @@ void play(){
     } else{
         sprintf(buffer, "RLG ERR\n");
     }
-    n = sendto(fd, buffer, strlen(buffer), 0, res->ai_addr, res->ai_addrlen);
+    n = sendto(fd, buffer, strlen(buffer), 0, (struct sockaddr*)&addr, addrlen);
     if(n == -1){
         fprintf(stderr, "error: %s\n", strerror(errno));
         exit(1);
     }
 }
 
+
 void write_file(char *filename, char *buffer){
-    FILE *fp = fopen(filename, "r");
+    char filename2[MAX_FILENAME_SIZE + 1];
+    sprintf(filename2, "Dados_GS/%s", filename);
+    FILE *fp = fopen(filename2, "r");
     if(fp == NULL){
         fprintf(stderr, "error: %s\n", strerror(errno));
         exit(1);
@@ -118,32 +120,43 @@ void write_file(char *filename, char *buffer){
 
     fseek(fp, 0, SEEK_END);
     int size = ftell(fp);
-
-    char *ptr;
+    fclose(fp);
+    printf("tamanho do ficheiro: %d\n", size);
 
     sprintf(buffer, "%s %d ", filename, size);
-    while((n = write(fd, ptr, strlen(buffer)))!=0){
+    char *ptr = buffer;
+    int n_left = strlen(buffer);
+    while((n = write(newfd, ptr, n_left))!=0){
         if(n == -1){
             printf("ERROR\n");
             exit(1);
         }
         ptr += n;
+        n_left -= n;
+    }
+
+    fp = fopen(filename2, "r");
+    if(fp == NULL){
+        fprintf(stderr, "error: %s\n", strerror(errno));
+        exit(1);
     }
 
     while (size > 0){
+        n_left = fread(buffer, 1, MAX_READ_SIZE, fp);
         ptr = buffer;
-        int n_left = fread(buffer, 1, MAX_READ_SIZE, fp);
-        while(n_left > 0){
-            n = write(fd, ptr, MAX_READ_SIZE);
+        while((n = write(newfd, ptr, n_left))!=0){
             if(n == -1){
                 printf("ERROR\n");
                 exit(1);
             }
-            size -= n;
             ptr += n;
             n_left -= n;
+            size -=n;
         }
     }
+    
+    buffer[0] = '\n';
+    write(newfd, buffer, 1);
     fclose(fp);
 }
 
@@ -152,31 +165,35 @@ void hint(){
     char PLID[MAX_PLID_SIZE + 1];
     int n = sscanf(ptr, "%s\n", PLID);
     FILE *fp;
-    char filename[MAX_PLAYER_FILENAME_SIZE];
+    char filename[MAX_PLAYER_FILENAME_SIZE + 1];
     sprintf(filename, "GAME_%s.txt", PLID);
+    
     if((fp = fopen(filename, "r")) != NULL){
         fgets(buffer, MAX_READ_SIZE, fp);
         fclose(fp);
         sscanf(buffer, "%*s %s", filename);
         sprintf(buffer, "RHL OK ");
         char *ptr = buffer;
-        while((n = write(fd, buffer, strlen(buffer)))!=0){
+        int n_left = strlen(buffer);
+        while((n = write(newfd, ptr, n_left))!=0){
             if(n == -1){
-                printf("ERROR\n");
+                printf("ERROR1\n");
                 exit(1);
             } 
             ptr += n;
+            n_left -= n;
         }
         write_file(filename, buffer);
     } else {
         sprintf(buffer, "RHL NOK\n");
-        while((n = write(fd, buffer, strlen(buffer)))!=0)
+        while((n = write(newfd, buffer, strlen(buffer)))!=0)
         if(n == -1){
-            printf("ERROR\n");
+            printf("ERROR2\n");
             exit(1);
         }
     }
 }
+
 
 void UDP_connect(){
 
@@ -186,7 +203,7 @@ void UDP_connect(){
         exit(1);
     }
 
-    memset(&hints, 0, sizeof(hints));
+    memset(&hints, 0, sizeof hints);
     hints.ai_family = AF_INET;
     hints.ai_socktype = SOCK_DGRAM;
     hints.ai_flags = AI_PASSIVE;
@@ -211,7 +228,7 @@ void TCP_open_socket(){
         exit(1);
     }
 
-    memset(&hints, 0, sizeof(hints));
+    memset(&hints, 0, sizeof hints);
     hints.ai_family = AF_INET;
     hints.ai_socktype = SOCK_STREAM;
     hints.ai_flags = AI_PASSIVE;
@@ -224,7 +241,7 @@ void TCP_open_socket(){
     
     n = bind(fd, res->ai_addr, res->ai_addrlen);
     if(n == -1){
-        printf("ERROR\n");
+        printf("ERROR10\n");
         exit(1);
     }
 
@@ -252,6 +269,8 @@ void UDP_command(){
         }
         buffer[n] = '\0';
 
+        printf("%s\n", buffer);
+        
         if(verbose)
             printf("Received: %s\n", buffer);
 
@@ -271,30 +290,36 @@ void UDP_command(){
         }
         close_connection();
     }
-    close_connection();
 }
     
 void TCP_command(){
     char command[MAX_COMMAND_SIZE + 1];
 
+    TCP_open_socket();
     while(1){
-        TCP_open_socket();
         addrlen = sizeof(addr);
         if((newfd = accept(fd, (struct sockaddr*)&addr, &addrlen)) == -1){
             printf("ERROR\n");
             exit(1);
         }
-        while((n=read(newfd, buffer, MAX_READ_SIZE))!=0)
-        if(n == -1){
-            printf("ERROR\n");
-            exit(1);
+        
+        printf("TCP read starts\n");
+        char *ptr = buffer;
+        
+        while((n=read(newfd, ptr, MAX_READ_SIZE))!=0){
+            if(n == -1){
+                printf("ERROR\n");
+                exit(1);
+            }
+            ptr += n;
+            break; //............................................................... reparar isto
         }
-        buffer[n] = '\0';
-
+        
+        *ptr = '\0';
         if(verbose)
             printf("Received: %s\n", buffer);
 
-        sscanf(buffer, "%s", command);
+        sscanf(buffer, "%s ", command);
         if(!strcmp(command, "GSB")){
             //scoreboard();
         } else if(!strcmp(command, "GHL")){
@@ -306,7 +331,7 @@ void TCP_command(){
             printf("ERROR\n");
             exit(1);
         }
-        close_connection();
+        close(newfd);
     }
     close_connection();
 }
@@ -339,16 +364,19 @@ int main(int argc, char** argv){
     }
     fclose(fp);
     
-    pid_t c1_pid, c2_pid;
+    pid_t c1_pid, c2_pid, wpid;
+    int status;
 
     (c1_pid = fork()) && (c2_pid = fork());
     if(c1_pid == 0){
         UDP_command();
         exit(0);
     } else if(c2_pid == 0){
-        //TCP_command();
+        TCP_command();
         exit(0);
     } else{
         /* Parent code goes here */
+        while ((wpid = wait(&status)) > 0);
+        printf("else\n");
     }
 }

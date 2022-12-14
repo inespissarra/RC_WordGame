@@ -9,7 +9,7 @@ int errno;
 
 
 int main(int argc, char** argv){
-    char* hostname = NULL;
+    char hostname[MAX_HOSTNAME_SIZE + 1] = "\0";
     char* port = "58082";
 
     char buffer[MAX_READ_SIZE + 1], PLID[MAX_PLID_SIZE + 1], game[MAX_WORD_LENGTH + 1];
@@ -18,16 +18,16 @@ int main(int argc, char** argv){
     // Read hostname and port
     for(int i=1; i < argc; i+=2){
         if(!strcmp(argv[i], "-n"))
-            hostname = argv[i+1];
+            strcpy(hostname, argv[i+1]);
         else if(!strcmp(argv[i], "-p")){
             port = argv[i+1];
         }
     }
-    if(hostname == NULL){
+    if(strlen(hostname)==0){
         if(gethostname(buffer, MAX_READ_SIZE)==-1)
             fprintf(stderr, "error: %s\n", strerror(errno));
         else
-            hostname = buffer;
+            strcpy(hostname, buffer);
     }
 
     char command[10];

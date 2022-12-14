@@ -94,8 +94,6 @@ void start(char* hostname, char* port, char *buffer, char *PLID, char *game, int
         exit(1);
     }
     buffer[n]='\0';
-
-
     close_socket();
 
     char buf1[4], buf2[4];
@@ -280,6 +278,8 @@ void guess(char* hostname, char* port, char *buffer, char *PLID, int *trial_numb
         printf("ERRORc\n");
 
 }
+
+
 void read_file(int print, char *ptr, char *buffer){
     char filename[MAX_FILENAME_SIZE], filesize_str[MAX_FSIZE_SIZE];
 
@@ -308,9 +308,8 @@ void read_file(int print, char *ptr, char *buffer){
             printf("%s", buffer);
     }
     fclose(fp);
-
-    if (!print)
-        printf("received hint file: %s %s\n", filename, filesize_str);
+    if(!print)
+        printf("Hint file received: %s %zu\n", filename, filesize);
 }
 
 
