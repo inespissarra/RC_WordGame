@@ -8,6 +8,8 @@
 #include <arpa/inet.h>
 #include <netdb.h>
 #include <errno.h>
+#include <time.h>
+#include <sys/stat.h>
 
 #include "constants.h"
 
@@ -39,6 +41,39 @@ void get_new_word(){
     fclose(fp);
 }
 
+void update_file(char *filename, int trial_number, int max_errors, char *word){
+    FILE *fp = fopen(filename, "r");
+    if(fp==NULL){
+        printf("ERROR\n");
+        exit(1);
+    }
+    FILE *fp2 = fopen("temp.txt", "w");
+    if(fp2==NULL){
+        printf("ERROR\n");
+        exit(1);
+    }
+    fgets(buffer, MAX_READ_SIZE, fp);
+    fprintf(fp2, "%s", buffer);
+    fgets(buffer, MAX_READ_SIZE, fp);
+    fprintf(fp2, "%d %d %s\n", trial_number, max_errors, word);
+    while ((fgets(buffer, MAX_READ_SIZE, fp)) != NULL){
+        fprintf(fp2, "%s", buffer);
+    }
+    fclose(fp);
+    fclose(fp2);
+    remove(filename);
+    rename("temp.txt", filename);
+}
+
+void finish_game(char *PLID, char *filename, char state){
+    char buf[MAX_FILENAME_SIZE];
+    time_t t = time(NULL);
+    struct tm tm = *localtime(&t);
+    sprintf(buf, "GAMES/%s", PLID);
+    mkdir(buf, 0777); //-nao da de outra maneira?
+    sprintf(buf, "GAMES/%s/%d%d%d_%d%d%d_%c.txt", PLID, tm.tm_year, tm.tm_mon, tm.tm_mday, tm.tm_hour, tm.tm_min, tm.tm_sec, state);
+    rename(filename, buf);
+}
 
 void start(){
     char *ptr = buffer + 4;
@@ -46,17 +81,21 @@ void start(){
     char PLID[MAX_PLID_SIZE + 1];
     sscanf(ptr, "%s", PLID);
     FILE *fp;
-    char filename[MAX_PLAYER_FILENAME_SIZE];
+    char filename[MAX_FILENAME_SIZE];
     int max_errors;
-    sprintf(filename, "GAME_%s.txt", PLID);
-    if(!access(filename, F_OK)){ // File exists
+    sprintf(filename, "GAMES/GAME_%s.txt", PLID);
+    if(!access(filename, F_OK)){
+        // File exists
+        printf("File exists\n");
         fp = fopen(filename, "r");
+        printf("aberto\n");
         fgets(buffer, MAX_READ_SIZE, fp);
         sscanf(buffer, "%s", word);
         fgets(buffer, MAX_READ_SIZE, fp);
         int trial_number;
         sscanf(buffer, "%d %d", &trial_number, &max_errors);
-        if(trial_number!=1){ // Check if no play was yet received
+        if(trial_number!=1){ 
+            // No play was yet received
             fclose(fp);
             sprintf(buffer, "RSG NOK\n");
             n = sendto(fd, buffer, strlen(buffer), 0, (struct sockaddr*)&addr, addrlen);
@@ -79,9 +118,10 @@ void start(){
             max_errors = 9;
         fp = fopen(filename, "w");
         fprintf(fp, "%s", buffer);
-        sprintf(buffer, "1 %d ", max_errors); // Trial number, attempts left  // dois espaços kkkkk como melhorar?
-        memset(buffer + 4, '_', strlen(word)); // state of the game
+        sprintf(buffer, "1 %d ", max_errors);
+        memset(buffer + 4, '_', strlen(word));
         buffer[4 + strlen(word)] = '\0';
+        // trial_number max_errors game_state
         fprintf(fp, "%s\n", buffer);
         fclose(fp);
     }
@@ -109,21 +149,24 @@ int correct_trial_not_duplicate(char *filename, char letter, int trial_number){
     fgets(buffer, MAX_READ_SIZE, fp);
     int trial_number2;
     sscanf(buffer, "%d", &trial_number2);
-    printf("%d %d\n", trial_number, trial_number2);
-    if(trial_number2==trial_number){ // ver se existem duplicados
+    if(trial_number2==trial_number){ 
+        // Correct trial
         for(int i = 0; i < trial_number; i++){
             fgets(buffer, MAX_READ_SIZE, fp);
             char code, letter2;
             sscanf(buffer, "%c %c", &code, &letter2);
             if(code=='T' && letter2 == letter){
+                // Duplicate
                 sprintf(buffer, "RLG DUP %d\n", trial_number2);
                 fclose(fp);
                 return 0;
             }
         }
         fclose(fp);
-        return 1; // nova jogada
-    } else if(trial_number==trial_number2-1){ //mandou a jogada anterior de novo?
+        // Not duplicate (new trial)
+        return 1;
+    } else if(trial_number==trial_number2-1){ 
+        // Last trial?
         for(int i = 0; i < trial_number; i++){
             fgets(buffer, MAX_READ_SIZE, fp);
         }
@@ -131,7 +174,8 @@ int correct_trial_not_duplicate(char *filename, char letter, int trial_number){
         sscanf(buffer, "%c %c", &code, &letter2);
         if(code=='T' && letter2 == letter){
             fclose(fp);
-            return 2;  // jogada antiga
+            // Last trial!
+            return 2;
         }
     }
     fclose(fp);
@@ -139,14 +183,13 @@ int correct_trial_not_duplicate(char *filename, char letter, int trial_number){
     return 0;
 }
 
-void actually_play(char *filename, char letter, int trial_number, int write){
+void actually_play(char *PLID, char *filename, char letter, int trial_number, int write){
     FILE *fp = fopen(filename, "r+");
     if(fp == NULL){
         fprintf(stderr, "error: %s\n", strerror(errno));
         exit(1);
     }
     fgets(buffer, MAX_READ_SIZE, fp);
-    int offset = strlen(buffer);
     char word[MAX_WORD_LENGTH + 1];
     sscanf(buffer, "%s", word);
     int n = 0;
@@ -166,20 +209,17 @@ void actually_play(char *filename, char letter, int trial_number, int write){
                 word[positions[i]] = letter;
             }
             if(strchr(word, '_')==NULL){
-                sprintf(buffer, "%d %d %s\n", trial_number, max_errors, word);
-                fseek(fp, offset, SEEK_SET);
-                fprintf(fp, "%s", buffer);
+                fclose(fp);
+                update_file(filename, trial_number, max_errors, word);
                 sprintf(buffer, "RLG WIN %d\n", trial_number);
-                 // meter o ficheiro no sitio certo
+                finish_game(PLID, filename, 'W');
                 return;
             }
-            sprintf(buffer, "%d %d %s\n", trial_number + 1, max_errors, word);
-            fseek(fp, offset, SEEK_SET);
-            fprintf(fp, "%s", buffer);
+            fclose(fp);
+            update_file(filename, trial_number + 1, max_errors, word);
         }
         sprintf(buffer, "RLG OK %d %d ", trial_number, n);
         for(int i=0; i < n; i++){
-            printf("%d %d\n", n, positions[i]);
             char buf[4];
             sprintf(buf, "%d ", positions[i] + 1);
             strcat(buffer, buf);
@@ -189,14 +229,13 @@ void actually_play(char *filename, char letter, int trial_number, int write){
     } else{
         int max_errors;
         if(write){
-            fgets(buffer, MAX_READ_SIZE, fp);
             int trial_number2;
-            sscanf(buffer, "%d %d %s", &trial_number2, &max_errors, word);
-            fseek(fp, offset, SEEK_SET);
-            fprintf(fp, "%d %d %s\n", trial_number2 + 1, max_errors - 1, word);
+            fscanf(fp, "%d %d %s", &trial_number2, &max_errors, word);
+            fclose(fp);
+            update_file(filename, trial_number2 + 1, max_errors - 1, word);
             if(max_errors - 1 == 0){
                 sprintf(buffer, "RLG OVR %d\n", trial_number2 + 1);
-                // meter o ficheiro no sitio certo
+                finish_game(PLID, filename, 'F');
                 return;
             }
         }
@@ -222,16 +261,18 @@ void play(){
     char word[MAX_WORD_LENGTH + 1];
     char PLID[MAX_PLID_SIZE + 1];
     n = sscanf(ptr, "%s %c %d\n", PLID, &letter, &trial_number);
-    if(n==3){ // Correct format
-        char filename[MAX_PLAYER_FILENAME_SIZE];
-        sprintf(filename, "GAME_%s.txt", PLID);
-        if(!access(filename, F_OK)){ // File exists
+    if(n==3){ 
+        // Correct format
+        char filename[MAX_FILENAME_SIZE];
+        sprintf(filename, "GAMES/GAME_%s.txt", PLID);
+        if(!access(filename, F_OK)){ 
+            // File exists
             int result = correct_trial_not_duplicate(filename, letter, trial_number);
             if(result==1){
                 adicionar_jogada(filename, 'T', letter);
-                actually_play(filename, letter, trial_number, 1);
+                actually_play(PLID, filename, letter, trial_number, 1);
             } else if(result == 2){
-                actually_play(filename, letter, trial_number, 0);
+                actually_play(PLID, filename, letter, trial_number, 0);
             }
         } else{
             sprintf(buffer, "RLG ERR\n");
@@ -245,7 +286,8 @@ void play(){
         fprintf(stderr, "error: %s\n", strerror(errno));
         exit(1);
     }
-    printf("Sent: %s\n", buffer);
+    if(verbose)
+        printf("Sent: %s\n", buffer);
 }
 
 void guess(){
@@ -254,10 +296,12 @@ void guess(){
     char PLID[MAX_PLID_SIZE + 1];
     int trial_number;
     n = sscanf(ptr, "%s %s %d\n", PLID, guess, &trial_number);
-    if(n==3){ // Correct format
-        char filename[MAX_PLAYER_FILENAME_SIZE];
-        sprintf(filename, "GAME_%s.txt", PLID);
-        if(!access(filename, F_OK)){ // File exists
+    if(n==3){ 
+        // Correct format
+        char filename[MAX_FILENAME_SIZE];
+        sprintf(filename, "GAMES/GAME_%s.txt", PLID);
+        if(!access(filename, F_OK)){ 
+            // File exists
             FILE *fp = fopen(filename, "r+");
             char word[MAX_WORD_LENGTH + 1];
             if(fp == NULL){
@@ -266,7 +310,6 @@ void guess(){
             }
             fgets(buffer, MAX_READ_SIZE, fp);
             sscanf(buffer, "%s", word);
-            int offset = strlen(buffer);
             fgets(buffer, MAX_READ_SIZE, fp);
             int trial_number2;
             int max_errors;
@@ -276,20 +319,18 @@ void guess(){
                 fseek(fp, 0, SEEK_END);
                 fprintf(fp, "G %s\n", guess);
                 if(strcmp(word, guess)==0){
-                    fseek(fp, offset, SEEK_SET);
-                    fprintf(fp, "%d %d %s\n", trial_number, max_errors, word);
+                    update_file(filename, trial_number, max_errors, word);
                     sprintf(buffer, "RWG WIN %d\n", trial_number);
-                    // meter o ficheiro no sitio certo
-                } else if(max_errors - 1 == 0){
-                    sscanf(buffer, "%*d %*d %s", word);
-                    fseek(fp, offset, SEEK_SET);
-                    fprintf(fp, "%d %d %s\n", trial_number + 1, max_errors - 1, word);
-                    sprintf(buffer, "RWG OVR %d\n", trial_number);
+                    finish_game(PLID, filename, 'W');
                 } else {
                     sscanf(buffer, "%*d %*d %s", word);
-                    fseek(fp, offset, SEEK_SET);
-                    fprintf(fp, "%d %d %s\n", trial_number + 1, max_errors - 1, word);
-                    sprintf(buffer, "RWG NOK %d\n", trial_number);
+                    update_file(filename, trial_number + 1, max_errors - 1, word);
+                    if(max_errors - 1 == 0){
+                        sprintf(buffer, "RWG OVR %d\n", trial_number);
+                        finish_game(PLID, filename, 'F');
+                    }
+                    else
+                        sprintf(buffer, "RWG NOK %d\n", trial_number);
                 }
             } else{
                 sprintf(buffer, "RWG INV %d\n", trial_number);
@@ -307,19 +348,20 @@ void guess(){
         fprintf(stderr, "error: %s\n", strerror(errno));
         exit(1);
     }
-    printf("Sent: %s\n", buffer);
+    if(verbose)
+        printf("Sent: %s\n", buffer);
 }
 
 void quit(){
     char *ptr = buffer + 4;
     char PLID[MAX_PLID_SIZE + 1];
     n = sscanf(ptr, "%s\n", PLID);
-    char filename[MAX_PLAYER_FILENAME_SIZE];
-    sprintf(filename, "GAME_%s.txt", PLID);
-    if(!access(filename, F_OK)){ // File exists
-        // alterar o ficheiro para o nome certo
+    char filename[MAX_FILENAME_SIZE];
+    sprintf(filename, "GAMES/GAME_%s.txt", PLID);
+    if(!access(filename, F_OK)){ 
+        // File exists
+        finish_game(PLID, filename, 'Q');
         sprintf(buffer, "RQT OK\n");
-        //remove(filename);
     } else{
         sprintf(buffer, "RQT ERR\n");
     }
@@ -329,7 +371,8 @@ void quit(){
         fprintf(stderr, "error: %s\n", strerror(errno));
         exit(1);
     }
-    printf("Sent: %s\n", buffer);
+    if(verbose)
+        printf("Sent: %s\n", buffer);
 }
 
 
@@ -389,8 +432,8 @@ void hint(){
     char PLID[MAX_PLID_SIZE + 1];
     int n = sscanf(ptr, "%s\n", PLID);
     FILE *fp;
-    char filename[MAX_PLAYER_FILENAME_SIZE + 1];
-    sprintf(filename, "GAME_%s.txt", PLID);
+    char filename[MAX_FILENAME_SIZE + 1];
+    sprintf(filename, "GAMES/GAME_%s.txt", PLID);
     
     if((fp = fopen(filename, "r")) != NULL){
         fgets(buffer, MAX_READ_SIZE, fp);
@@ -469,7 +512,7 @@ void TCP_open_socket(){
         exit(1);
     }
 
-    if(listen(fd, 5) == -1){ // 5 is the maximum number of pending connections, can be changed (?)
+    if(listen(fd, 5) == -1){ //- 5 is the maximum number of pending connections, can be changed (?)
         printf("ERROR\n");
         exit(1);
     }
@@ -534,7 +577,7 @@ void TCP_command(){
                 exit(1);
             }
             ptr += n;
-            break; //............................................................... reparar isto
+            break; //-............................................................... reparar isto
         }
         
         *ptr = '\0';
@@ -543,11 +586,11 @@ void TCP_command(){
 
         sscanf(buffer, "%s ", command);
         if(!strcmp(command, "GSB")){
-            //scoreboard();
+            //-scoreboard();
         } else if(!strcmp(command, "GHL")){
             hint();
         } else if(!strcmp(command, "STA")){
-            //state();
+            //-state();
         } else{
             // Invalid command
             printf("ERROR\n");
