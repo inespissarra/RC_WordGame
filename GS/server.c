@@ -232,11 +232,14 @@ void actually_play(char *PLID, char *filename, char letter, int trial_number, in
             int trial_number2;
             fscanf(fp, "%d %d %s", &trial_number2, &max_errors, word);
             fclose(fp);
-            update_file(filename, trial_number2 + 1, max_errors - 1, word);
             if(max_errors - 1 == 0){
-                sprintf(buffer, "RLG OVR %d\n", trial_number2 + 1);
+                update_file(filename, trial_number2, max_errors - 1, word);
+                sprintf(buffer, "RLG OVR %d\n", trial_number);
                 finish_game(PLID, filename, 'F');
                 return;
+            }
+            else{
+                update_file(filename, trial_number2 + 1, max_errors - 1, word);
             }
         }
         sprintf(buffer, "RLG NOK %d\n", trial_number);
@@ -324,13 +327,15 @@ void guess(){
                     finish_game(PLID, filename, 'W');
                 } else {
                     sscanf(buffer, "%*d %*d %s", word);
-                    update_file(filename, trial_number + 1, max_errors - 1, word);
                     if(max_errors - 1 == 0){
+                        update_file(filename, trial_number, max_errors - 1, word);
                         sprintf(buffer, "RWG OVR %d\n", trial_number);
                         finish_game(PLID, filename, 'F');
                     }
-                    else
-                        sprintf(buffer, "RWG NOK %d\n", trial_number);
+                    else{
+                        update_file(filename, trial_number + 1, max_errors - 1, word);
+                        sprintf(buffer, "RWG NOK %d\n", trial_number );
+                    }
                 }
             } else{
                 sprintf(buffer, "RWG INV %d\n", trial_number);
