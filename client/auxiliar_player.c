@@ -191,7 +191,7 @@ void play(char* hostname, char* port, char *buffer, char *PLID, char *game, int 
         } else if(!strcmp(buf, "DUP")){
             ptr += 4;
             sscanf(ptr, "%d", &trial);
-            if (trial != ((*trial_number)-1))
+            if (trial != ((*trial_number))) // - 1?
                 printf("ERROR\n");
             else
                 printf("The letter has been inserted before\n");
@@ -275,7 +275,7 @@ void guess(char* hostname, char* port, char *buffer, char *PLID, int *trial_numb
         } else
             printf("ERROR\n");
     } else 
-        printf("ERRORc\n");
+        printf("ERROR\n");
 
 }
 
