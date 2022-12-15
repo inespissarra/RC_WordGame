@@ -10,7 +10,7 @@ all: $(TARGET_EXECS)
 
 client/player: client/player.c client/auxiliar_player.c
 
-GS/server: GS/server.c
+GS/server: GS/server.c GS/server_UDP.c GS/server_TCP.c
 
 clean: # make clean
 	rm -f $(OBJECTS) $(TARGET_EXECS)

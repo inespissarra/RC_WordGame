@@ -1,12 +1,7 @@
-#include <string.h>
-#include <stdio.h>
-#include <unistd.h>
-#include <errno.h>
 #include "constants.h"
 #include "auxiliar_player.h"
 
 int errno;
-
 
 int main(int argc, char** argv){
     char hostname[MAX_HOSTNAME_SIZE + 1] = "\0";
@@ -34,24 +29,18 @@ int main(int argc, char** argv){
     while(1){
         // Read command
         scanf("%s", command);
-        if(!strcmp(command, "start") || !strcmp(command, "sg")){
+        if(!strcmp(command, "start") || !strcmp(command, "sg"))
             start(hostname, port, buffer, PLID, game, &trial_number);
-        }
-        else if(!strcmp(command, "play") || !strcmp(command, "pl")){
+        else if(!strcmp(command, "play") || !strcmp(command, "pl"))
             play(hostname, port, buffer, PLID, game, &trial_number);
-        }
-        else if(!strcmp(command, "guess") || !strcmp(command, "gw")){
+        else if(!strcmp(command, "guess") || !strcmp(command, "gw"))
             guess(hostname, port, buffer, PLID, &trial_number);
-        }
-        else if(!strcmp(command, "scoreboard") || !strcmp(command, "sb")){
+        else if(!strcmp(command, "scoreboard") || !strcmp(command, "sb"))
             scoreboard(hostname, port, buffer, PLID);
-        }
-        else if(!strcmp(command, "hint") || !strcmp(command, "h")){
+        else if(!strcmp(command, "hint") || !strcmp(command, "h"))
             hint(hostname, port, buffer, PLID);
-        }
-        else if(!strcmp(command, "state") || !strcmp(command, "st")){
+        else if(!strcmp(command, "state") || !strcmp(command, "st"))
             state(hostname, port, buffer, PLID);
-        }
         else if(!strcmp(command, "quit") || !strcmp(command, "q")){
             if(trial_number>0)
                 quit(hostname, port, buffer, PLID, &trial_number);
@@ -59,11 +48,9 @@ int main(int argc, char** argv){
         else if(!strcmp(command, "exit")){
             if(trial_number>0)
                 quit(hostname, port, buffer, PLID, &trial_number);
-            break;
-                
+            break; 
         }
-        else{
+        else
             printf("ERROR\n");
-        }
     }
 }
