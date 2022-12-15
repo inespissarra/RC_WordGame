@@ -25,7 +25,6 @@
 void UDP_command(char *word_file, char *port, int verbose);
 void UDP_connect(char *port);
 void get_new_word(char *word_file);
-void finish_game(char *PLID, char *filename, char state);
 void start(char *word_file, int verbose);
 int count_unique_char(char word[MAX_WORD_LENGTH]);
 int get_max_errors(int length);
@@ -34,6 +33,7 @@ void valid_move(char *word, char *move, char code, int state[4], char *PLID, cha
 void play(int verbose);
 void guess(int verbose);
 void quit(int verbose);
+void finish_game(char *PLID, char *filename, char state);
 
 
 #endif
