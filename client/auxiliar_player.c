@@ -280,11 +280,13 @@ void guess(char* hostname, char* port, char *buffer, char *PLID, int *trial_numb
 }
 
 
-void read_file(int print, char *ptr, char *buffer){
+void read_file(int print, char *buffer){
     char filename[MAX_FILENAME_SIZE], filesize_str[MAX_FSIZE_SIZE];
 
-    sscanf(ptr, "%s %s", filename, filesize_str);
-    ssize_t filesize = atoi(filesize_str), nleft;
+    read_until_space(filename);
+    read_until_space(filesize_str);
+
+    ssize_t filesize = atoi(filesize_str);
 
     FILE *fp = fopen(filename, "w");
     if(fp == NULL){
@@ -292,16 +294,13 @@ void read_file(int print, char *ptr, char *buffer){
         exit(1);
     }
 
-    ptr += strlen(filename) + strlen(filesize_str) + 2;
-    if (print)
-        printf("%s", ptr);
+    ssize_t nleft = filesize;
 
-    n -= strlen(filename) + strlen(filesize_str) + 2; // bytes already read
-    fwrite(ptr, 1, n, fp);
-
-    nleft = filesize - n;
     while (nleft > 0){
-        n = read_from_TCP_socket(buffer, MAX_READ_SIZE);
+        if(nleft > MAX_READ_SIZE)
+            n = read_from_TCP_socket(buffer, MAX_READ_SIZE);
+        else
+            n = read_from_TCP_socket(buffer, nleft);
         nleft -= n;
         fwrite(buffer, 1, n, fp);
         if (print)
@@ -310,6 +309,18 @@ void read_file(int print, char *ptr, char *buffer){
     fclose(fp);
     if(!print)
         printf("Hint file received: %s %zu\n", filename, filesize);
+}
+
+void read_until_space(char *ptr){
+    do {
+        n = read(fd, ptr, 1);
+        if(n == -1){
+            printf("ERROR\n");
+            exit(1);
+        }
+        ptr+=n;
+    } while(*(ptr-1)!=' ' && *(ptr-1)!='\n');
+    *(ptr-1) = '\0';
 }
 
 
@@ -334,18 +345,13 @@ void scoreboard(char* hostname, char* port, char *buffer, char *PLID){
         nleft-=n; ptr+=n;
     }
 
-    n = read_from_TCP_socket(buffer, MAX_READ_SIZE);
-    char buf[4];
-    ptr = buffer;
-    sscanf(buffer, "%s ", buf);
+    read_until_space(buffer);
 
-    if(!strcmp(buf, "RSB")){
-        ptr += 4; n -= 4;
-        sscanf(ptr, "%s ", buf);
-        if(!strcmp(buf, "OK")){
-            ptr += 3; n -= 3;
-            read_file(1, ptr, buffer);
-        } else if(!strcmp(buf, "EMPTY")){
+    if(!strcmp(buffer, "RSB")){
+        read_until_space(buffer);
+        if(!strcmp(buffer, "OK")){
+            read_file(1, buffer);
+        } else if(!strcmp(buffer, "EMPTY")){
             printf("No game was yet won by any player\n");
         }
         else {
@@ -379,21 +385,17 @@ void hint(char* hostname, char* port, char *buffer, char *PLID){
         nleft-=n; ptr+=n;
     }
 
-    n = read_from_TCP_socket(buffer, MAX_READ_SIZE);
-    char buf[4];
-    ptr = buffer;
-    sscanf(buffer, "%s ", buf);
-
-    if(!strcmp(buf, "RHL")){
-        ptr += 4; n -= 4;
-        sscanf(ptr, "%s ", buf);
-        if(!strcmp(buf, "OK")){
-            ptr += 3; n -= 3;
-            read_file(0, ptr, buffer);
+    read_until_space(buffer);
+    if(!strcmp(buffer, "RHL")){
+        read_until_space(buffer);
+        if(!strcmp(buffer, "OK")){
+            read_file(0, buffer);
         }
-        else if(!strcmp(buf, "NOK")){
+        else if(!strcmp(buffer, "NOK")){
             printf("No hint file available\n");
         }
+    } else {
+        printf("ERROR\n");
     }
     close_socket();
 }
@@ -420,21 +422,18 @@ void state(char* hostname, char* port, char *buffer, char *PLID){
         nleft-=n; ptr+=n;
     }
 
-    n = read_from_TCP_socket(buffer, MAX_READ_SIZE);
-    char buf[4];
-    ptr = buffer;
-    sscanf(buffer, "%s ", buf);
+    read_until_space(buffer);
 
-    if(!strcmp(buf, "RST")){
-        ptr += 4; n -= 4;
-        sscanf(ptr, "%s ", buf);
-        if(!strcmp(buf, "ACT") || !strcmp(buf, "FIN")){
-            ptr += 4; n-=4;
-            read_file(1, ptr, buffer);
+    if(!strcmp(buffer, "RST")){
+        read_until_space(buffer);
+        if(!strcmp(buffer, "ACT") || !strcmp(buffer, "FIN")){
+            read_file(1, buffer);
         }
-        else if(!strcmp(buf, "NOK")){
+        else if(!strcmp(buffer, "NOK")){
             printf("No games active or finished for you :/\n");
         }
+    } else {
+        printf("ERROR\n");
     }
     close_socket();
 

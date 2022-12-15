@@ -390,8 +390,10 @@ void write_file(char *filename, char *buffer){
         }
     }
     buffer[0] = '\n';
+    printf("sim\n");
 
     write(newfd, buffer, 1);
+
     fclose(fp);
 }
 
@@ -503,7 +505,7 @@ void TCP_open_socket(){
     
     n = bind(fd, res->ai_addr, res->ai_addrlen);
     if(n == -1){
-        printf("ERROR10\n");
+        printf("ERROR\n");
         exit(1);
     }
 
@@ -561,35 +563,44 @@ void TCP_command(){
             printf("ERROR\n");
             exit(1);
         }
-        
-        printf("TCP read starts\n");
-        char *ptr = buffer;
+
+        pid_t c1_pid, wpid;
+
+        c1_pid = fork();
+        if(c1_pid == 0){
+            // child process
+            char *ptr = buffer;
     
-        while(*(ptr-1)!=' '){
-            n=read(newfd, ptr, 1);
-            if(n == -1){
+            do {
+                n=read(newfd, ptr, 1);
+                if(n == -1){
+                    printf("ERROR\n");
+                    exit(1);
+                }
+                ptr+=n;
+            } while(*(ptr-1)!=' ' || *(ptr-1)!='\n');
+            *(ptr-1) = '\0';
+            
+            if(verbose)
+                printf("Received: %s\n", buffer);
+
+            if(!strcmp(buffer, "GSB")){
+                //scoreboard();
+            } else if(!strcmp(buffer, "GHL")){
+                hint();
+            } else if(!strcmp(buffer, "STA")){
+                //state();
+            } else{
+                // Invalid command
                 printf("ERROR\n");
                 exit(1);
             }
-            ptr+=n;
-        }
-        *(ptr-1) = '\0';
-        
-        if(verbose)
-            printf("Received: %s\n", buffer);
-
-        if(!strcmp(buffer, "GSB")){
-            //scoreboard();
-        } else if(!strcmp(buffer, "GHL")){
-            hint();
-        } else if(!strcmp(buffer, "STA")){
-            //state();
-        } else{
-            // Invalid command
+            close(newfd);
+            exit(0);
+        } else if(c1_pid < 0){
             printf("ERROR\n");
             exit(1);
         }
-        close(newfd);
     }
     close_connection();
 }
