@@ -15,6 +15,8 @@
 void create_UDP_socket(char* hostname, char* port);
 void create_TCP_socket(char* hostname, char* port);
 void close_socket();
+void send_and_read_UDP(char *buffer, char *hostname, char *port);
+void send_and_read_TCP(char *buffer);
 ssize_t read_from_TCP_socket(char *buffer, ssize_t nleft);
 void start(char* hostname, char* port, char *buffer, char *PLID, char *game, int *trial_number);
 void play(char* hostname, char* port, char *buffer, char *PLID, char *game, int *trial_number);

@@ -55,6 +55,46 @@ void close_socket(){
     close(fd);
 }
 
+void send_and_read_UDP(char *buffer, char *hostname, char *port){
+    create_UDP_socket(hostname, port);
+
+    n = sendto(fd, buffer, strlen(buffer), 0, res->ai_addr, res->ai_addrlen);
+    if(n == -1){
+        fprintf(stderr, "error: %s\n", strerror(errno));
+        exit(1);
+    }
+    addrlen = sizeof(addr);
+    n = recvfrom(fd, buffer, MAX_READ_SIZE, 0, (struct sockaddr*)&addr, &addrlen);
+    if(n == -1){
+        fprintf(stderr, "error: %s\n", strerror(errno));
+        exit(1);
+    }
+    buffer[n]='\0';
+    
+    close_socket();
+}
+
+void send_and_read_TCP(char *buffer){
+    n = connect(fd, res->ai_addr, res->ai_addrlen);
+    if(n == -1){
+        fprintf(stderr, "error: %s\n", strerror(errno));
+        exit(1);
+    }
+
+    ssize_t nleft = strlen(buffer);
+    char *ptr = buffer;
+    while(nleft>0){
+        n = write(fd, ptr, strlen(buffer));
+        if(n == -1){
+            fprintf(stderr, "error: %s\n", strerror(errno));
+            exit(1);
+        }
+        nleft-=n; ptr+=n;
+    }
+
+    read_until_space(buffer);
+}
+
 ssize_t read_from_TCP_socket(char *buffer, ssize_t nleft){
     char *ptr = buffer;
     ssize_t total_read = 0;
@@ -74,27 +114,55 @@ ssize_t read_from_TCP_socket(char *buffer, ssize_t nleft){
     return total_read;
 }
 
+void read_file(int print, char *buffer){
+    char filename[MAX_FILENAME_SIZE], filesize_str[MAX_FSIZE_SIZE];
+
+    read_until_space(filename);
+    read_until_space(filesize_str);
+
+    ssize_t filesize = atoi(filesize_str);
+
+    FILE *fp = fopen(filename, "w");
+    if(fp == NULL){
+        fprintf(stderr, "error: %s\n", strerror(errno));
+        exit(1);
+    }
+
+    ssize_t nleft = filesize;
+
+    while (nleft > 0){
+        if(nleft > MAX_READ_SIZE)
+            n = read_from_TCP_socket(buffer, MAX_READ_SIZE);
+        else
+            n = read_from_TCP_socket(buffer, nleft);
+        nleft -= n;
+        fwrite(buffer, 1, n, fp);
+        if (print)
+            printf("%s", buffer);
+    }
+    fclose(fp);
+    if(!print)
+        printf("Hint file received: %s %zu\n", filename, filesize);
+}
+
+void read_until_space(char *ptr){
+    do {
+        n = read(fd, ptr, 1);
+        if(n == -1){
+            printf("ERROR\n");
+            exit(1);
+        }
+        ptr+=n;
+    } while(*(ptr-1)!=' ' && *(ptr-1)!='\n');
+    *(ptr-1) = '\0';
+}
+
 
 void start(char* hostname, char* port, char *buffer, char *PLID, char *game, int *trial_number){
     scanf("%s", PLID);
     sprintf(buffer, "SNG %s\n", PLID);
 
-    create_UDP_socket(hostname, port);
-
-    n = sendto(fd, buffer, strlen(buffer), 0, res->ai_addr, res->ai_addrlen);
-    if(n == -1){
-        fprintf(stderr, "error: %s\n", strerror(errno));
-        exit(1);
-    }
-
-    addrlen = sizeof(addr);
-    n = recvfrom(fd, buffer, MAX_READ_SIZE, 0, (struct sockaddr*)&addr, &addrlen);
-    if(n == -1){
-        fprintf(stderr, "error: %s\n", strerror(errno));
-        exit(1);
-    }
-    buffer[n]='\0';
-    close_socket();
+    send_and_read_UDP(buffer, hostname, port);
 
     char buf1[4], buf2[4];
     int n_let, errors;
@@ -122,23 +190,7 @@ void play(char* hostname, char* port, char *buffer, char *PLID, char *game, int 
     scanf(" %c", &letter);
     sprintf(buffer, "PLG %s %c %d\n", PLID, letter, *trial_number);
 
-    create_UDP_socket(hostname, port);
-
-    n = sendto(fd, buffer, strlen(buffer), 0, res->ai_addr, res->ai_addrlen);
-    if(n == -1){
-        fprintf(stderr, "error: %s\n", strerror(errno));
-        exit(1);
-    }
-
-    addrlen = sizeof(addr);
-    n = recvfrom(fd, buffer, MAX_READ_SIZE, 0, (struct sockaddr*)&addr, &addrlen);
-    if(n == -1){
-        fprintf(stderr, "error: %s\n", strerror(errno));
-        exit(1);
-    }
-    buffer[n]='\0';
-    
-    close_socket();
+    send_and_read_UDP(buffer, hostname, port);
 
     char buf[4], *ptr = buffer;
     int trial;
@@ -191,7 +243,7 @@ void play(char* hostname, char* port, char *buffer, char *PLID, char *game, int 
         } else if(!strcmp(buf, "DUP")){
             ptr += 4;
             sscanf(ptr, "%d", &trial);
-            if (trial != ((*trial_number))) // - 1?
+            if (trial != ((*trial_number)))
                 printf("ERROR\n");
             else
                 printf("The letter has been inserted before\n");
@@ -220,22 +272,7 @@ void guess(char* hostname, char* port, char *buffer, char *PLID, int *trial_numb
     scanf(" %s", word);
     sprintf(buffer, "PWG %s %s %d\n", PLID, word, *trial_number);
 
-    create_UDP_socket(hostname, port);
-
-    n = sendto(fd, buffer, strlen(buffer), 0, res->ai_addr, res->ai_addrlen);
-    if(n == -1){
-        fprintf(stderr, "error: %s\n", strerror(errno));
-        exit(1);
-    }
-    addrlen = sizeof(addr);
-    n = recvfrom(fd, buffer, MAX_READ_SIZE, 0, (struct sockaddr*)&addr, &addrlen);
-    if(n == -1){
-        fprintf(stderr, "error: %s\n", strerror(errno));
-        exit(1);
-    }
-    buffer[n]='\0';
-    
-    close_socket();
+    send_and_read_UDP(buffer, hostname, port);
 
     char buf[4], *ptr = buffer;
     int trial;
@@ -280,72 +317,11 @@ void guess(char* hostname, char* port, char *buffer, char *PLID, int *trial_numb
 }
 
 
-void read_file(int print, char *buffer){
-    char filename[MAX_FILENAME_SIZE], filesize_str[MAX_FSIZE_SIZE];
-
-    read_until_space(filename);
-    read_until_space(filesize_str);
-
-    ssize_t filesize = atoi(filesize_str);
-
-    FILE *fp = fopen(filename, "w");
-    if(fp == NULL){
-        fprintf(stderr, "error: %s\n", strerror(errno));
-        exit(1);
-    }
-
-    ssize_t nleft = filesize;
-
-    while (nleft > 0){
-        if(nleft > MAX_READ_SIZE)
-            n = read_from_TCP_socket(buffer, MAX_READ_SIZE);
-        else
-            n = read_from_TCP_socket(buffer, nleft);
-        nleft -= n;
-        fwrite(buffer, 1, n, fp);
-        if (print)
-            printf("%s", buffer);
-    }
-    fclose(fp);
-    if(!print)
-        printf("Hint file received: %s %zu\n", filename, filesize);
-}
-
-void read_until_space(char *ptr){
-    do {
-        n = read(fd, ptr, 1);
-        if(n == -1){
-            printf("ERROR\n");
-            exit(1);
-        }
-        ptr+=n;
-    } while(*(ptr-1)!=' ' && *(ptr-1)!='\n');
-    *(ptr-1) = '\0';
-}
-
-
 void scoreboard(char* hostname, char* port, char *buffer, char *PLID){
     sprintf(buffer, "GSB\n");
 
     create_TCP_socket(hostname, port);
-    n = connect(fd, res->ai_addr, res->ai_addrlen);
-    if(n == -1){
-        fprintf(stderr, "error: %s\n", strerror(errno));
-        exit(1);
-    }
-
-    ssize_t nleft = strlen(buffer);
-    char *ptr = buffer;
-    while(nleft>0){
-        n = write(fd, ptr, strlen(buffer));
-        if(n == -1){
-            fprintf(stderr, "error: %s\n", strerror(errno));
-            exit(1);
-        }
-        nleft-=n; ptr+=n;
-    }
-
-    read_until_space(buffer);
+    send_and_read_TCP(buffer);
 
     if(!strcmp(buffer, "RSB")){
         read_until_space(buffer);
@@ -368,35 +344,18 @@ void hint(char* hostname, char* port, char *buffer, char *PLID){
     sprintf(buffer, "GHL %s\n", PLID);
 
     create_TCP_socket(hostname, port);
-    n = connect(fd, res->ai_addr, res->ai_addrlen);
-    if(n == -1){
-        fprintf(stderr, "error: %s\n", strerror(errno));
-        exit(1);
-    }
+    send_and_read_TCP(buffer);
 
-    ssize_t nleft = strlen(buffer);
-    char *ptr = buffer;
-    while(nleft>0){
-        n = write(fd, ptr, strlen(buffer));
-        if(n == -1){
-            fprintf(stderr, "error: %s\n", strerror(errno));
-            exit(1);
-        }
-        nleft-=n; ptr+=n;
-    }
-
-    read_until_space(buffer);
     if(!strcmp(buffer, "RHL")){
         read_until_space(buffer);
-        if(!strcmp(buffer, "OK")){
+        if(!strcmp(buffer, "OK"))
             read_file(0, buffer);
-        }
-        else if(!strcmp(buffer, "NOK")){
+        else if(!strcmp(buffer, "NOK"))
             printf("No hint file available\n");
-        }
-    } else {
+        else
+            printf("ERROR\n");
+    } else
         printf("ERROR\n");
-    }
     close_socket();
 }
 
@@ -405,24 +364,7 @@ void state(char* hostname, char* port, char *buffer, char *PLID){
     sprintf(buffer, "STA %s\n", PLID);
 
     create_TCP_socket(hostname, port);
-    n = connect(fd, res->ai_addr, res->ai_addrlen);
-    if(n == -1){
-        fprintf(stderr, "error: %s\n", strerror(errno));
-        exit(1);
-    }
-
-    ssize_t nleft = strlen(buffer);
-    char *ptr = buffer;
-    while(nleft>0){
-        n = write(fd, ptr, strlen(buffer));
-        if(n == -1){
-            fprintf(stderr, "error: %s\n", strerror(errno));
-            exit(1);
-        }
-        nleft-=n; ptr+=n;
-    }
-
-    read_until_space(buffer);
+    send_and_read_TCP(buffer);
 
     if(!strcmp(buffer, "RST")){
         read_until_space(buffer);
@@ -443,30 +385,17 @@ void state(char* hostname, char* port, char *buffer, char *PLID){
 void quit(char* hostname, char* port, char *buffer, char *PLID, int *trial_number){
     sprintf(buffer, "QUT %s\n", PLID);
 
-    create_UDP_socket(hostname, port);
-    n = sendto(fd, buffer, strlen(buffer), 0, res->ai_addr, res->ai_addrlen);
-    if(n == -1){
-        fprintf(stderr, "error: %s\n", strerror(errno));
-        exit(1);
-    }
-    *trial_number=0;
-
-    addrlen = sizeof(addr);
-    n = recvfrom(fd, buffer, MAX_READ_SIZE, 0, (struct sockaddr*)&addr, &addrlen);
-    if(n == -1){
-        fprintf(stderr, "error: %s\n", strerror(errno));
-        exit(1);
-    }
-    buffer[n]='\0';
-
-    close_socket();
+    send_and_read_UDP(buffer, hostname, port);
 
     char buf[4];
     sscanf(buffer, "%s ", buf);
     if(!strcmp(buf, "RQT")){
         sscanf(buffer, "%*s %s ", buf);
-        if(strcmp(buf, "OK") != 0)
+        if(!strcmp(buf, "OK"))
+            *trial_number=0;
+        else
             printf("ERROR\n");
+        
     } else
         printf("ERROR\n");
 }
