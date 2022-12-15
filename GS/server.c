@@ -197,7 +197,7 @@ void play(){
                         }
                         else{
                             int length = strlen(word), occ_len;
-                            char indexes[MAX_WORD_LENGTH*4], pos[4];
+                            char indexes[MAX_WORD_LENGTH*3], pos[4];
                             indexes[0] = '\0';
                             for (int i = 0; i<length; i++){
                                 if (word[i] == letter){
@@ -390,7 +390,6 @@ void write_file(char *filename, char *buffer){
         }
     }
     buffer[0] = '\n';
-    printf("sim\n");
 
     write(newfd, buffer, 1);
 
@@ -558,6 +557,7 @@ void TCP_command(){
 
     TCP_open_socket();
     while(1){
+        
         addrlen = sizeof(addr);
         if((newfd = accept(fd, (struct sockaddr*)&addr, &addrlen)) == -1){
             printf("ERROR\n");
@@ -572,13 +572,13 @@ void TCP_command(){
             char *ptr = buffer;
     
             do {
-                n=read(newfd, ptr, 1);
+                n = read(newfd, ptr, 1);
                 if(n == -1){
-                    printf("ERROR\n");
+                    printf("ERROR1\n");
                     exit(1);
                 }
                 ptr+=n;
-            } while(*(ptr-1)!=' ' || *(ptr-1)!='\n');
+            } while(*(ptr-1)!=' ' && *(ptr-1)!='\n');
             *(ptr-1) = '\0';
             
             if(verbose)
