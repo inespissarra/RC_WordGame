@@ -138,14 +138,9 @@ void start(char *word_file, int verbose){
         fclose(fp);
     }
 
-    int max_errors, len = strlen(word);
-    
-    if(len < 7)
-        max_errors = 7;
-    else if(len < 11)
-        max_errors = 8;
-    else
-        max_errors = 9;
+    int len = strlen(word);
+
+    int max_errors = get_max_errors(len);
 
     sprintf(buffer, "RSG OK %d %d\n", len, max_errors);
     
@@ -162,22 +157,104 @@ void start(char *word_file, int verbose){
 int count_unique_char(char word[MAX_WORD_LENGTH]){
     char unique[MAX_WORD_LENGTH];
     int length = strlen(word);
+    int n_unique = 0;
     for (int i=0; i<length; i++){
-        if (strchr(unique, word[i])==NULL)
-            unique[strlen(unique)] = word[i];
+        if (strchr(unique, word[i])==NULL){
+            unique[n_unique] = word[i];
+            n_unique++;
+        }
     }
-    return strlen(unique);
+    return n_unique;
+}
+
+int get_max_errors(int length){
+    if(length < 7)
+        return 7;
+    else if(length < 11)
+        return 8;
+    else
+        return 9;
+}
+
+void get_state(FILE *fp, char *word, char *move, int state[4], char actual_code){
+    int n_trials = 1, errors = 0, corrects=0, dup = 0;
+    char previous[MAX_WORD_LENGTH], code;
+    while(fgets(buffer, MAX_WORD_LENGTH+3, fp) != NULL){
+        sscanf(buffer, "%c %s", &code, previous);
+        if (actual_code == 'T' && code == 'T'){
+            // if the letter was sent in a previous trial
+            if (previous[0] == *move)
+                dup = 1;
+            if (strchr(word, previous[0])!=NULL)
+                corrects ++;
+        }
+        
+        if ((code=='T' && strchr(word, previous[0])==NULL) || (code=='G' && strcmp(word,previous)))
+            errors++;
+        
+        n_trials++;
+    }
+    state[N_TRIALS] = n_trials; 
+    state[CORRECTS] = corrects; 
+    state[ERRORS] = errors; 
+    state[DUP] = dup;
+}
+
+void valid_move(char *word, char *move, char code, int state[4], char *PLID, char *filename){
+    int len = strlen(word);
+    int max_errors = get_max_errors(len);
+
+    char command[4];
+
+    if(code=='T')
+        strcpy(command, "RLG");
+    else
+        strcpy(command, "RWG");
+
+    if(!state[DUP]){ 
+        // The letter was not sent in a previous trial
+        FILE *fp = fopen(filename, "a+");
+        sprintf(buffer, "%c %s\n", code, move);
+        fputs(buffer, fp);
+        fclose(fp);
+    }
+    if ((code == 'T' && strchr(word, *move)==NULL) || (code == 'G' && strcmp(word, move))){
+        if (state[ERRORS] < max_errors)
+            sprintf(buffer, "%s NOK %d\n", command, state[N_TRIALS]);
+        else if (state[ERRORS] == max_errors){
+            sprintf(buffer, "%s OVR %d\n", command, state[N_TRIALS]);
+            finish_game(PLID, filename, 'F');
+        }
+    }
+    else if ((code == 'T' && strchr(word, *move)!=NULL) || (code == 'G' && !strcmp(word, move))){
+        int num_unique = count_unique_char(word);
+        if (code == 'G' || state[CORRECTS]+1 == num_unique){
+            sprintf(buffer, "%s WIN %d\n", command, state[N_TRIALS]);
+            finish_game(PLID, filename, 'W');
+        }
+        else{
+            char indexes[MAX_WORD_LENGTH*3], pos[4];
+            indexes[0] = '\0';
+            int n=0;
+            for (int i = 0; i<len; i++){
+                if (word[i] == *move){
+                    sprintf(pos, "%d ", i+1);
+                    strcat(indexes, pos);
+                    n++;
+                }
+            }
+            sprintf(buffer, "%s OK %d %d %s\n", command, state[N_TRIALS], n, indexes);
+        }
+    }
 }
 
 
 void play(int verbose){
-    char *ptr = buffer + 4;
-    char letter;
+    char letter[2];
     int trial_number;
-    char word[MAX_WORD_LENGTH + 1];
-    char PLID[MAX_PLID_SIZE + 1];
+    char word[MAX_WORD_LENGTH + 1], PLID[MAX_PLID_SIZE + 1];
 
-    n = sscanf(ptr, "%s %c %d\n", PLID, &letter, &trial_number);
+    n = sscanf(buffer + 4, "%s %s %d\n", PLID, letter, &trial_number);
 
     if(n==3){ // Correct format
         FILE *fp;
@@ -185,78 +262,27 @@ void play(int verbose){
 
         sprintf(filename, "GAMES/GAME_%s.txt", PLID);
 
-        if((fp = fopen(filename, "r+")) != NULL){
+        if((fp = fopen(filename, "r")) != NULL){
             fgets(buffer, MAX_READ_SIZE, fp);
             
-            sscanf(buffer, "%s %*s", word); // get the word
-            int num_unique = count_unique_char(word), max_errors, len = strlen(word);
+            sscanf(buffer, "%s ", word);
+            // get the word
 
-            if(len < 7)
-                max_errors = 7;
-            else if(len < 11)
-                max_errors = 8;
-            else
-                max_errors = 9;
-            
-            int n_trials = 1, errors = 0, corrects=0, dup = 0;
-            char previous[MAX_WORD_LENGTH], code, trial_list[MAX_WORD_LENGTH];
-            while(fgets(buffer, MAX_WORD_LENGTH+3, fp) != NULL){
-                sscanf(buffer, "%c %s", &code, previous);
-                if (code == 'T'){
-                    // if the letter was sent in a previous trial
-                    if (previous[0] == letter)
-                        dup = 1;
-                    if (strchr(word, previous[0])!=NULL)
-                        corrects ++;
-                }
-                
-                if ((code=='T' && strchr(word, previous[0])==NULL) || (code=='G' && strcmp(word,previous)))
-                    errors++;
-                
-                n_trials++;
-            }
-
-            if (n_trials != trial_number){
-                sprintf(buffer, "RLG INV %d\n", n_trials);
-            }
-            else {
-                if (dup == 1)
-                    sprintf(buffer, "RLG DUP %d\n", n_trials);
-        
-                else {
-                    if (strchr(word, letter)==NULL){
-                        if (errors < max_errors){
-                            sprintf(buffer, "RLG NOK %d\n", n_trials);
-                        }
-                        else if (errors == max_errors){
-                            sprintf(buffer, "RLG OVR %d\n", n_trials);
-                            finish_game(PLID, filename, 'F');
-                        }
-                    }
-                    else if (strchr(word, letter)!=NULL){
-                        if (corrects+1 == num_unique){
-                            sprintf(buffer, "RLG WIN %d\n", n_trials);
-                            finish_game(PLID, filename, 'W');
-                        }
-                        else{
-                            int length = strlen(word), occ_len;
-                            char indexes[MAX_WORD_LENGTH*3], pos[4];
-                            indexes[0] = '\0';
-                            for (int i = 0; i<length; i++){
-                                if (word[i] == letter){
-                                    sprintf(pos, "%d ", i+1);
-                                    strcat(indexes, pos);
-                                }
-                            }
-                            sprintf(buffer, "RLG OK %d %ld %s\n", n_trials, strlen(indexes)/2, indexes);
-                        }
-                    }
-                    char line[MAX_WORD_LENGTH+MAX_FILENAME_SIZE+1];
-                    sprintf(line, "T %c\n", letter);
-                    fputs(line, fp);
-                }
-            }
+            int state[4];
+            get_state(fp, word, letter, state, 'T');
             fclose(fp);
+
+            if (state[N_TRIALS] != trial_number){
+                if(state[N_TRIALS]-1==trial_number && state[DUP]){
+                    valid_move(word, letter, 'T', state, PLID, filename);
+                } else{
+                    sprintf(buffer, "RLG INV %d\n", state[N_TRIALS]);
+                }
+            }
+            else if(state[DUP])
+                sprintf(buffer, "RLG DUP %d\n", state[N_TRIALS]);
+            else
+                valid_move(word, letter, 'T', state, PLID, filename);
 
         } else{
             sprintf(buffer, "RLG ERR\n");
@@ -278,7 +304,6 @@ void play(int verbose){
 
 void guess(int verbose){
     char *ptr = buffer + 4;
-    char letter;
     int trial_number;
     char word[MAX_WORD_LENGTH + 1];
     char PLID[MAX_PLID_SIZE + 1], guess[MAX_WORD_LENGTH];
@@ -292,52 +317,28 @@ void guess(int verbose){
 
         sprintf(filename, "GAMES/GAME_%s.txt", PLID);
 
-        if((fp = fopen(filename, "r+")) != NULL){
+        if((fp = fopen(filename, "r")) != NULL){
             fgets(buffer, MAX_WORD_LENGTH+MAX_FILENAME_SIZE+2, fp);
             
-            sscanf(buffer, "%s %*s", word);
-            int num_unique = count_unique_char(word), max_errors, len = strlen(word);
+            sscanf(buffer, "%s ", word);
 
-            if(len < 7)
-                max_errors = 7;
-            else if(len < 11)
-                max_errors = 8;
-            else
-                max_errors = 9;
-            
-            int n_trials = 1, errors = 0;
-            char previous[MAX_WORD_LENGTH], code;
-            while(fgets(buffer, MAX_WORD_LENGTH+3, fp) != NULL){
-                sscanf(buffer, "%c %s", &code, previous);
-                if ((code=='T' && strchr(word, previous[0])==NULL) || (code=='G' && strcmp(word,previous)))
-                    errors++;
-                n_trials++; // increment trial number
-            }
+            int state[4];
+            get_state(fp, word, guess, state, 'G');
+            fclose(fp);
 
             // check the trial number
-            if (n_trials != trial_number){
-                sprintf(buffer, "RWG INV %d\n", n_trials);
+            if (state[N_TRIALS] != trial_number){ // mudar aqui
+                if(state[N_TRIALS]-1==trial_number && state[DUP]){
+                    valid_move(word, guess, 'G', state, PLID, filename);
+                } else{
+                    sprintf(buffer, "RWG INV %d\n", state[N_TRIALS]);
+                }
             }
+            else if(state[DUP])
+                sprintf(buffer, "RWG DUP %d\n", state[N_TRIALS]);
+            else
+                valid_move(word, guess, 'G', state, PLID, filename);
         
-            else if (strcmp(word, guess)){
-                if (errors < max_errors){
-                    sprintf(buffer, "RWG NOK %d\n", n_trials);
-                }
-                else if (errors == max_errors){
-                    sprintf(buffer, "RWG OVR %d\n", n_trials);
-                    finish_game(PLID, filename, 'F');
-                }
-            }
-            
-            else if (!strcmp(word, guess)){
-                sprintf(buffer, "RWG WIN %d\n", n_trials);
-                finish_game(PLID, filename, 'W');
-            }
-            
-            char line[MAX_WORD_LENGTH+MAX_FILENAME_SIZE+1];
-            sprintf(line, "G %s\n", guess);
-            fputs(line, fp);
-            fclose(fp);
 
         } else{
             sprintf(buffer, "RLG ERR\n");
