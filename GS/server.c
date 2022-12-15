@@ -322,6 +322,7 @@ void quit(){
     n = sscanf(ptr, "%s\n", PLID);
     char filename[MAX_FILENAME_SIZE];
     sprintf(filename, "GAMES/GAME_%s.txt", PLID);
+    printf("Chegou aqui\n");
     if(!access(filename, F_OK)){ 
         // File exists
         finish_game(PLID, filename, 'Q');
@@ -394,10 +395,33 @@ void write_file(char *filename, char *buffer){
     fclose(fp);
 }
 
+void read_PLID(char *PLID){
+    int n_left = MAX_PLID_SIZE;
+    while(n>0){
+        n = read(newfd, PLID, n_left);
+        if(n == -1){
+            printf("ERROR\n");
+            exit(1);
+        }
+        PLID += n;
+        n_left -= n;
+    }
+    *PLID = '\0';
+    n=0;
+    while((n = read(newfd, buffer, 1))==0){ 
+        if(n == -1){
+            printf("ERROR\n");
+            exit(1);
+        }
+    }
+}
+
 void hint(){
-    char *ptr = buffer + 4;
+    printf("entrou no hint\n");
     char PLID[MAX_PLID_SIZE + 1];
-    int n = sscanf(ptr, "%s\n", PLID);
+    read_PLID(PLID);
+    if (verbose)
+        printf("Received: %s\n", PLID);
     FILE *fp;
     char filename[MAX_FILENAME_SIZE + 1];
     sprintf(filename, "GAMES/GAME_%s.txt", PLID);
@@ -414,7 +438,7 @@ void hint(){
         int n_left = strlen(buffer);
         while((n = write(newfd, ptr, n_left))!=0){
             if(n == -1){
-                printf("ERROR1\n");
+                printf("ERROR\n");
                 exit(1);
             } 
             ptr += n;
@@ -426,7 +450,7 @@ void hint(){
         sprintf(buffer, "RHL NOK\n");
         while((n = write(newfd, buffer, strlen(buffer)))!=0)
         if(n == -1){
-            printf("ERROR2\n");
+            printf("ERROR\n");
             exit(1);
         }
     }
@@ -518,7 +542,7 @@ void UDP_command(){
         } else if(!strcmp(command, "PWG")){
             guess();
         } else if(!strcmp(command, "QUT")){
-            //quit();
+            quit();
         } else{
             // Invalid command
             printf("ERROR\n");
@@ -529,7 +553,6 @@ void UDP_command(){
 }
     
 void TCP_command(){
-    char command[MAX_COMMAND_SIZE + 1];
 
     TCP_open_socket();
     while(1){
@@ -541,26 +564,25 @@ void TCP_command(){
         
         printf("TCP read starts\n");
         char *ptr = buffer;
-        
-        while((n=read(newfd, ptr, MAX_READ_SIZE))!=0){
+    
+        while(*(ptr-1)!=' '){
+            n=read(newfd, ptr, 1);
             if(n == -1){
                 printf("ERROR\n");
                 exit(1);
             }
-            ptr += n;
-            break; //............................................................... reparar isto
+            ptr+=n;
         }
+        *(ptr-1) = '\0';
         
-        *ptr = '\0';
         if(verbose)
             printf("Received: %s\n", buffer);
 
-        sscanf(buffer, "%s ", command);
-        if(!strcmp(command, "GSB")){
+        if(!strcmp(buffer, "GSB")){
             //scoreboard();
-        } else if(!strcmp(command, "GHL")){
+        } else if(!strcmp(buffer, "GHL")){
             hint();
-        } else if(!strcmp(command, "STA")){
+        } else if(!strcmp(buffer, "STA")){
             //state();
         } else{
             // Invalid command
