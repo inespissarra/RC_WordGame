@@ -30,7 +30,7 @@ void start(char *word_file, int verbose);
 int count_unique_char(char word[MAX_WORD_LENGTH]);
 int get_max_errors(int length);
 void get_command(char code, char *command);
-void get_state(FILE *fp, char *word, char *move, int state[4], char actual_code);
+void get_state(FILE *fp, char *word, char *move, int state[4], char current_code);
 void move(char *filename, char *move, char code, char *PLID, int trial_number);
 void valid_move(char *word, char *move, char code, int state[4], char *PLID, char *filename);
 void play(int verbose);
