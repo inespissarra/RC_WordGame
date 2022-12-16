@@ -216,9 +216,13 @@ void move(char *filename, char *move, char code, char *PLID, int trial_number){
         }
         else if(state[DUP])
             sprintf(buffer, "%s DUP %d\n", command, state[N_TRIALS]);
-        else
+        else{
+            fp = fopen(filename, "a+");
+            sprintf(buffer, "%c %s\n", code, move);
+            fputs(buffer, fp);
+            fclose(fp);
             valid_move(word, move, code, state, PLID, filename);
-
+        }
     } else
         sprintf(buffer, "%s ERR\n", command);
 }
@@ -228,14 +232,6 @@ void valid_move(char *word, char *move, char code, int state[4], char *PLID, cha
 
     char command[4];
     get_command(code, command);
-
-    if(!state[DUP]){ 
-        // The letter was not sent in a previous trial
-        FILE *fp = fopen(filename, "a+");
-        sprintf(buffer, "%c %s\n", code, move);
-        fputs(buffer, fp);
-        fclose(fp);
-    }
 
     if ((code == 'T' && strchr(word, *move)!=NULL) || (code == 'G' && !strcmp(word, move))){
         // Correct
@@ -278,11 +274,7 @@ void play(int verbose){
         // Correct format
         char filename[MAX_FILENAME_SIZE];
         sprintf(filename, "GAMES/GAME_%s.txt", PLID);
-
         move(filename, letter, 'T', PLID, trial_number);
-
-        //------------------ ------------------
-
     } else
         sprintf(buffer, "RLG ERR\n");
 
@@ -305,9 +297,7 @@ void guess(int verbose){
         // Correct format
         char filename[MAX_FILENAME_SIZE];
         sprintf(filename, "GAMES/GAME_%s.txt", PLID);
-
         move(filename, guess, 'G', PLID, trial_number);
-
     } else
         sprintf(buffer, "RLG ERR\n");
 
@@ -355,12 +345,11 @@ void finish_game(char *PLID, char *filename, char state){
     if(dir){
         closedir(dir);
     } else if(ENOENT == errno){
-        mkdir("GAMES", 0777);
+        mkdir(buf, 0777);
     } else{
         perror("opendir");
         exit(1);
     }
-    mkdir(buf, 0777);
     sprintf(buf, "GAMES/%s/%d%d%d_%d%d%d_%c.txt", PLID, tm.tm_year, tm.tm_mon, tm.tm_mday, tm.tm_hour, tm.tm_min, tm.tm_sec, state);
     rename(filename, buf);
 }
