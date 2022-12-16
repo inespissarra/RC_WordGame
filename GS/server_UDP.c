@@ -170,12 +170,12 @@ void get_command(char code, char *command){
         strcpy(command, "RWG");
 }
 
-void get_state(FILE *fp, char *word, char *move, int state[4], char actual_code){
+void get_state(FILE *fp, char *word, char *move, int state[4], char current_code){
     int n_trials = 1, errors = 0, corrects=0, dup = 0;
     char previous[MAX_WORD_LENGTH], code;
     while(fgets(buffer, MAX_WORD_LENGTH+3, fp) != NULL){
         sscanf(buffer, "%c %s", &code, previous);
-        if (actual_code == 'T' && code == 'T'){
+        if (current_code == 'T' && code == 'T'){
             // if the letter was sent in a previous trial
             if (previous[0] == *move)
                 dup = 1;
@@ -217,7 +217,7 @@ void move(char *filename, char *move, char code, char *PLID, int trial_number){
         else if(state[DUP])
             sprintf(buffer, "%s DUP %d\n", command, state[N_TRIALS]);
         else{
-            fp = fopen(filename, "a+");
+            fp = fopen(filename, "a");
             sprintf(buffer, "%c %s\n", code, move);
             fputs(buffer, fp);
             fclose(fp);
