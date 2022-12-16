@@ -163,6 +163,13 @@ int get_max_errors(int length){
         return 9;
 }
 
+void get_command(char code, char *command){
+    if(code=='T')
+        strcpy(command, "RLG");
+    else
+        strcpy(command, "RWG");
+}
+
 void get_state(FILE *fp, char *word, char *move, int state[4], char actual_code){
     int n_trials = 1, errors = 0, corrects=0, dup = 0;
     char previous[MAX_WORD_LENGTH], code;
@@ -187,14 +194,40 @@ void get_state(FILE *fp, char *word, char *move, int state[4], char actual_code)
     state[DUP] = dup;
 }
 
+void move(char *filename, char *move, char code, char *PLID, int trial_number){
+    FILE *fp;
+    char command[4];
+    get_command(code, command);
+    if((fp = fopen(filename, "r")) != NULL){
+        fgets(buffer, MAX_READ_SIZE, fp);
+        
+        char word[MAX_WORD_LENGTH + 1];
+        sscanf(buffer, "%s ", word);
+
+        int state[4];
+        get_state(fp, word, move, state, code);
+        fclose(fp);
+
+        if (state[N_TRIALS] != trial_number){
+            if(state[N_TRIALS]-1==trial_number && state[DUP])
+                valid_move(word, move, code, state, PLID, filename);
+            else
+                sprintf(buffer, "%s INV %d\n", command, state[N_TRIALS]);
+        }
+        else if(state[DUP])
+            sprintf(buffer, "%s DUP %d\n", command, state[N_TRIALS]);
+        else
+            valid_move(word, move, code, state, PLID, filename);
+
+    } else
+        sprintf(buffer, "%s ERR\n", command);
+}
+
 void valid_move(char *word, char *move, char code, int state[4], char *PLID, char *filename){
     int len = strlen(word), max_errors = get_max_errors(len);
 
     char command[4];
-    if(code=='T')
-        strcpy(command, "RLG");
-    else
-        strcpy(command, "RWG");
+    get_command(code, command);
 
     if(!state[DUP]){ 
         // The letter was not sent in a previous trial
@@ -246,30 +279,9 @@ void play(int verbose){
         char filename[MAX_FILENAME_SIZE];
         sprintf(filename, "GAMES/GAME_%s.txt", PLID);
 
-        FILE *fp;
-        if((fp = fopen(filename, "r")) != NULL){
-            fgets(buffer, MAX_READ_SIZE, fp);
-            
-            char word[MAX_WORD_LENGTH + 1];
-            sscanf(buffer, "%s ", word);
+        move(filename, letter, 'T', PLID, trial_number);
 
-            int state[4];
-            get_state(fp, word, letter, state, 'T');
-            fclose(fp);
-
-            if (state[N_TRIALS] != trial_number){
-                if(state[N_TRIALS]-1==trial_number && state[DUP])
-                    valid_move(word, letter, 'T', state, PLID, filename);
-                else
-                    sprintf(buffer, "RLG INV %d\n", state[N_TRIALS]);
-            }
-            else if(state[DUP])
-                sprintf(buffer, "RLG DUP %d\n", state[N_TRIALS]);
-            else
-                valid_move(word, letter, 'T', state, PLID, filename);
-
-        } else
-            sprintf(buffer, "RLG ERR\n");
+        //------------------ ------------------
 
     } else
         sprintf(buffer, "RLG ERR\n");
@@ -283,7 +295,6 @@ void play(int verbose){
         printf("Sent: %s\n", buffer);
 }
 
-
 void guess(int verbose){
     int trial_number;
     char PLID[MAX_PLID_SIZE + 1], guess[MAX_WORD_LENGTH];
@@ -292,35 +303,10 @@ void guess(int verbose){
 
     if(n==3){ 
         // Correct format
-        FILE *fp;
         char filename[MAX_FILENAME_SIZE];
-
         sprintf(filename, "GAMES/GAME_%s.txt", PLID);
 
-        if((fp = fopen(filename, "r")) != NULL){
-            fgets(buffer, MAX_WORD_LENGTH+MAX_FILENAME_SIZE+2, fp);
-            
-            char word[MAX_WORD_LENGTH + 1];
-            sscanf(buffer, "%s ", word);
-
-            int state[4];
-            get_state(fp, word, guess, state, 'G');
-            fclose(fp);
-
-            if (state[N_TRIALS] != trial_number){
-                if(state[N_TRIALS]-1==trial_number && state[DUP])
-                    valid_move(word, guess, 'G', state, PLID, filename);
-                else
-                    sprintf(buffer, "RWG INV %d\n", state[N_TRIALS]);
-            }
-            else if(state[DUP])
-                sprintf(buffer, "RWG DUP %d\n", state[N_TRIALS]);
-            else
-                valid_move(word, guess, 'G', state, PLID, filename);
-        
-
-        } else
-            sprintf(buffer, "RLG ERR\n");
+        move(filename, guess, 'G', PLID, trial_number);
 
     } else
         sprintf(buffer, "RLG ERR\n");
@@ -362,8 +348,19 @@ void finish_game(char *PLID, char *filename, char state){
     char buf[MAX_FILENAME_SIZE];
     time_t t = time(NULL);
     struct tm tm = *localtime(&t);
+
     sprintf(buf, "GAMES/%s", PLID);
-    mkdir(buf, 0777); //-nao da de outra maneira?
+
+    DIR* dir = opendir(buf);
+    if(dir){
+        closedir(dir);
+    } else if(ENOENT == errno){
+        mkdir("GAMES", 0777);
+    } else{
+        perror("opendir");
+        exit(1);
+    }
+    mkdir(buf, 0777);
     sprintf(buf, "GAMES/%s/%d%d%d_%d%d%d_%c.txt", PLID, tm.tm_year, tm.tm_mon, tm.tm_mday, tm.tm_hour, tm.tm_min, tm.tm_sec, state);
     rename(filename, buf);
 }
