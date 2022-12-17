@@ -8,6 +8,7 @@
 #define MAX_PLID_SIZE 6
 #define MAX_COMMAND_SIZE 3
 #define MAX_PLAYER_STATE_SIZE 37
+#define MAX_FILE_SIZE 1024^3
 #define TIMEOUT 5000
 
 #endif

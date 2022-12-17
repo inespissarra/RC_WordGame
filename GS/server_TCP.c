@@ -7,6 +7,7 @@ struct addrinfo hints, *res;
 struct sockaddr_in addr;
 
 char buffer[MAX_READ_SIZE + 1];
+int file_number = 0;
 
 void TCP_command(char *port, int verbose){
 
@@ -40,7 +41,7 @@ void TCP_command(char *port, int verbose){
                 printf("Received: %s ", buffer);
 
             if(!strcmp(buffer, "GSB")){
-                //scoreboard();
+                scoreboard(verbose);
             } else if(!strcmp(buffer, "GHL")){
                 hint(verbose);
             } else if(!strcmp(buffer, "STA")){
@@ -214,4 +215,64 @@ void hint(int verbose){
         if(verbose)
             printf("Sent: %s\n", buffer);
     }
+}
+
+int find_top_scores(char sb_file[MAX_FILE_SIZE]){
+    struct dirent **filelist;
+    int n_entries, i_file, score, corrects, trials, i=0;
+    char fname[50], PLID[MAX_PLID_SIZE], word[MAX_WORD_LENGTH], line[MAX_READ_SIZE];
+    FILE *fp;
+    
+    n_entries = scandir("SCORES/", &filelist, 0, alphasort);
+    i_file = 0;
+    if (n_entries < 0)
+        return (0);
+    else{
+        strcpy(sb_file, "\n-------------------------------- TOP 10 SCORES --------------------------------\n    SCORE PLAYER     WORD                             GOOD TRIALS  TOTAL TRIALS\n\0");
+        while (i++ < 10 && n_entries != 0){
+            n_entries--;
+            if (filelist[n_entries]->d_name[0] != '.'){
+                char filename[MAX_FILENAME_SIZE];
+                strcpy(filename, filelist[n_entries]->d_name);
+                sprintf(fname, "SCORES/%s", filename);
+                fp = fopen(fname, "r");
+                if (fp != NULL){
+                    fscanf(fp, "%d %s %s %d %d", &score, PLID, word, &corrects, &trials);
+                    sprintf(line, " %d - %03d  %s  %-40s%-14d%d\n", ++i_file, score, PLID, word, corrects, trials);
+                    strcat(sb_file, line);
+                    fclose(fp);
+                }
+            }
+            free(filelist[n_entries]);
+        }
+        free(filelist);
+        strcat(sb_file, "\n");
+    }
+    return i_file;
+}
+
+void scoreboard(int verbose){
+    char sb_file[MAX_FILE_SIZE], response[MAX_READ_SIZE+MAX_FILE_SIZE];
+    int n_scores = find_top_scores(sb_file);
+    printf("find top score done, n_scores=%d\n", n_scores);
+
+    if (n_scores == 0)
+        sprintf(response, "RSB EMPTY\n");
+    
+    else{
+        sprintf(response, "RSB OK TOPSCORES_%07d.txt %zu %s\n", ++file_number, strlen(sb_file), sb_file);
+    }
+
+    char *ptr = response;
+    int n_left = strlen(response);
+    while((n = write(newfd, ptr, n_left))!=0){
+        if(n == -1){
+            printf("ERROR\n");
+            exit(1);
+        } 
+        ptr += n;
+        n_left -= n;
+    }
+    if(verbose)
+        printf("Sent: %s\n", response);
 }

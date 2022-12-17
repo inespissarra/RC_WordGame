@@ -176,7 +176,7 @@ void get_state(FILE *fp, char *word, char *move, int state[4], char current_code
     while(fgets(buffer, MAX_WORD_LENGTH+3, fp) != NULL){
         sscanf(buffer, "%c %s", &code, previous);
         
-        if ((actual_code == 'T' && code == 'T' && previous[0] == *move) || (actual_code == 'G' && code == 'G' && !strcmp(word, previous)))
+        if ((current_code == 'T' && code == 'T' && previous[0] == *move) || (current_code == 'G' && code == 'G' && !strcmp(word, previous)))
             // if the letter/word was sent in a previous trial
             dup = 1;
 

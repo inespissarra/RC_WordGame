@@ -14,6 +14,7 @@
 #include <errno.h>
 #include <time.h>
 #include <sys/stat.h>
+#include <sys/dir.h>
 
 #include "constants.h"
 
@@ -22,5 +23,7 @@ void TCP_open_socket(char *port);
 void write_file(char *filename, char *buffer, int verbose);
 void read_PLID(char *PLID);
 void hint(int verbose);
+int find_top_scores(char sb_file[MAX_FILE_SIZE]);
+void scoreboard(int verbose);
 
 #endif
