@@ -175,13 +175,13 @@ void get_state(FILE *fp, char *word, char *move, int state[4], char current_code
     char previous[MAX_WORD_LENGTH], code;
     while(fgets(buffer, MAX_WORD_LENGTH+3, fp) != NULL){
         sscanf(buffer, "%c %s", &code, previous);
-        if (current_code == 'T' && code == 'T'){
-            // if the letter was sent in a previous trial
-            if (previous[0] == *move)
-                dup = 1;
-            if (strchr(word, previous[0])!=NULL)
-                corrects ++;
-        }
+        
+        if ((actual_code == 'T' && code == 'T' && previous[0] == *move) || (actual_code == 'G' && code == 'G' && !strcmp(word, previous)))
+            // if the letter/word was sent in a previous trial
+            dup = 1;
+
+        if ((code == 'T' && strchr(word, previous[0])!=NULL) || (code=='G' && !strcmp(word,previous)))
+            corrects ++;
         
         if ((code=='T' && strchr(word, previous[0])==NULL) || (code=='G' && strcmp(word,previous)))
             errors++;
@@ -227,6 +227,19 @@ void move(char *filename, char *move, char code, char *PLID, int trial_number){
         sprintf(buffer, "%s ERR\n", command);
 }
 
+void create_score_file(char* PLID, char *word, int corrects, int trials){
+    char filename[MAX_FILENAME_SIZE], text[MAX_PLID_SIZE+MAX_WORD_LENGTH+11];
+    time_t t = time(NULL);
+    struct tm tm = *localtime(&t);
+    int score = (corrects/trials)*100;
+
+    sprintf(filename, "SCORES/%03d_%s_%d%d%d_%d%d%d.txt", score, PLID, tm.tm_year, tm.tm_mon, tm.tm_mday, tm.tm_hour, tm.tm_min, tm.tm_sec);
+
+    FILE* fp = fopen(filename, "w");
+    fprintf(fp, "%03d %s %s %d %d\n", score, PLID, word, corrects, trials);
+    fclose(fp);
+}
+
 void valid_move(char *word, char *move, char code, int state[4], char *PLID, char *filename){
     int len = strlen(word), max_errors = get_max_errors(len);
 
@@ -238,6 +251,7 @@ void valid_move(char *word, char *move, char code, int state[4], char *PLID, cha
         if (code == 'G' || state[CORRECTS]+1 == count_unique_char(word)){
             sprintf(buffer, "%s WIN %d\n", command, state[N_TRIALS]);
             finish_game(PLID, filename, 'W');
+            create_score_file(PLID, word, state[CORRECTS]+1, state[N_TRIALS]);
         }
         else{
             char indexes[MAX_WORD_LENGTH*3], pos[4];
