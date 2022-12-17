@@ -81,6 +81,7 @@ void get_new_word(char *word_file){
     }
     fseek(fp, offset, SEEK_SET);
     if(fgets(buffer, MAX_READ_SIZE, fp)==NULL){
+        offset = 0;
         rewind(fp);
         fgets(buffer, MAX_READ_SIZE, fp);
     }
