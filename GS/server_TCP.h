@@ -15,6 +15,7 @@
 #include <time.h>
 #include <sys/stat.h>
 #include <sys/dir.h>
+#include <dirent.h>
 
 #include "constants.h"
 
@@ -25,5 +26,7 @@ void read_PLID(char *PLID);
 void hint(int verbose);
 int find_top_scores(char sb_file[MAX_FILE_SIZE]);
 void scoreboard(int verbose);
-
+int find_last_game(char *PLID, char *filename);
+void create_state_file(char *PLID, char *filename, char file[MAX_FILE_SIZE], int status);
+void state(int verbose);
 #endif

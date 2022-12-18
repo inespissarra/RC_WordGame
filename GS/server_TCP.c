@@ -38,23 +38,23 @@ void TCP_command(char *port, int verbose){
             *(ptr-1) = '\0';
             
             if(verbose)
-                printf("Received: %s ", buffer);
+                printf("Received: %s\n", buffer);
 
             if(!strcmp(buffer, "GSB")){
                 scoreboard(verbose);
             } else if(!strcmp(buffer, "GHL")){
                 hint(verbose);
             } else if(!strcmp(buffer, "STA")){
-                //state();
+                state(verbose);
             } else{
                 // Invalid command
-                printf("ERROR\n");
+                printf("ERROR1\n");
                 exit(1);
             }
             close(newfd);
             exit(0);
         } else if(c1_pid < 0){
-            printf("ERROR\n");
+            printf("ERROR2\n");
             exit(1);
         }
     }
@@ -67,7 +67,7 @@ void TCP_command(char *port, int verbose){
 void TCP_open_socket(char *port){
     fd = socket(AF_INET, SOCK_STREAM, 0);
     if(fd == -1){
-        printf("ERROR\n");
+        printf("ERROR3\n");
         exit(1);
     }
 
@@ -78,18 +78,18 @@ void TCP_open_socket(char *port){
 
     errcode = getaddrinfo(NULL, port, &hints, &res);
     if(errcode!=0){ 
-        printf("ERROR\n");
+        printf("ERROR4\n");
         exit(1);
     }
     
     n = bind(fd, res->ai_addr, res->ai_addrlen);
     if(n == -1){
-        printf("ERROR\n");
+        printf("ERROR5\n");
         exit(1);
     }
 
     if(listen(fd, 5) == -1){ // 5 is the maximum number of pending connections, can be changed (?)
-        printf("ERROR\n");
+        printf("ERROR6\n");
         exit(1);
     }
 }
@@ -157,7 +157,7 @@ void read_PLID(char *PLID){
     while(n>0){
         n = read(newfd, PLID, n_left);
         if(n == -1){
-            printf("ERROR\n");
+            printf("ERROR7\n");
             exit(1);
         }
         PLID += n;
@@ -167,7 +167,7 @@ void read_PLID(char *PLID){
     n=0;
     while((n = read(newfd, buffer, 1))==0){ 
         if(n == -1){
-            printf("ERROR\n");
+            printf("ERROR8\n");
             exit(1);
         }
     }
@@ -268,6 +268,135 @@ void scoreboard(int verbose){
     while((n = write(newfd, ptr, n_left))!=0){
         if(n == -1){
             printf("ERROR\n");
+            exit(1);
+        } 
+        ptr += n;
+        n_left -= n;
+    }
+    if(verbose)
+        printf("Sent: %s\n", response);
+}
+
+
+int find_last_game(char *PLID, char *filename){
+    DIR *d;
+    struct dirent *dir, **filelist;
+    int n_entries, found;
+    char dirname[20], fname[MAX_FILENAME_SIZE], gamefile[MAX_PLID_SIZE+9];
+    sprintf(gamefile, "GAME_%s.txt", PLID);
+    d=opendir("./GAMES");
+    if (d){
+        while ((dir = readdir(d)) != NULL){
+            strcpy(fname, dir->d_name);
+            if (!strcmp(gamefile, fname)){
+                sprintf(filename, "GAMES/%s", fname);
+                return 1;
+            }
+
+        }
+        closedir(d);
+    }
+
+    sprintf(dirname, "GAMES/%s/", PLID);
+    n_entries = scandir("SCORES/", &filelist, 0, alphasort);
+    found = 0;
+
+    if (n_entries < 0)
+        return (0);
+    else{
+        while (n_entries--){
+            if (filelist[n_entries]->d_name[0] != '.'){
+                char dname[MAX_FILENAME_SIZE];
+                strcpy(dname, filelist[n_entries]->d_name);
+                sprintf(filename, "GAMES/%s/%s", PLID, dname);
+                found = 2;
+            }
+            free(filelist[n_entries]);
+            if (found == 2)
+                break;
+        }
+        free(filelist);
+    }
+    return found;
+}
+
+void create_state_file(char *PLID, char *filename, char file[MAX_FILE_SIZE], int status){
+    FILE *fp = fopen(filename, "r");
+    int n_trials=1;
+    char code, previous[MAX_WORD_LENGTH], transactions[MAX_FILE_SIZE], line[MAX_WORD_LENGTH+21], word[MAX_WORD_LENGTH], hintfile[MAX_FILENAME_SIZE], game[MAX_WORD_LENGTH];
+    
+    fgets(buffer, MAX_WORD_LENGTH+MAX_FILENAME_SIZE+2, fp);
+    sscanf(buffer, "%s %s", word, hintfile);
+    memset(game, '_', strlen(word));
+
+    while(fgets(buffer, MAX_WORD_LENGTH+MAX_FILENAME_SIZE+2, fp) != NULL){
+        sscanf(buffer, "%c %s", &code, previous);
+        if (code == 'T'){
+            if (strchr(word, previous[0])!=NULL){
+
+                for (int i = 0; i<strlen(word); i++)
+                    if (word[i] == previous[0])
+                        game[i] = previous[0];
+                
+                sprintf(line, "     Letter trial: %c - TRUE\n", previous[0]);
+            }
+            else
+                sprintf(line, "     Letter trial: %c - FALSE\n", previous[0]);
+        }
+        else if (code == 'G')
+            sprintf(line, "     Word guess: %s\n", previous);
+        
+        strcat(transactions, line);
+        n_trials ++;
+    }
+
+    if (status == 1){
+        sprintf(line, "     Solved so far: %s\n", game);
+        strcat(transactions, line);
+        sprintf(file, "     Active  game found for player %s\n     --- Transaction found: %d ---\n", PLID, n_trials);
+        strcat(file, transactions);
+    }
+
+    else{
+        sscanf(filename, "%*s_%*s_%c.txt", &code);
+        if (code == 'W')
+            sprintf(line, "     Termination: WIN\n");
+        else if (code == 'F')
+            sprintf(line, "     Termination - FAIL\n");
+        else if (code == 'Q')
+            sprintf(line, "     Termination - QUIT\n");
+        strcat(transactions, line);
+        sprintf(file, "     Last finalized game for player %s\n     Word: %s; Hint file: %s\n     --- Transaction found: %d ---\n", PLID, word, hintfile, n_trials);
+        strcat(file, transactions);
+
+    }
+
+}
+
+
+void state(int verbose){
+    char filename[MAX_FILENAME_SIZE], PLID[MAX_PLID_SIZE+1], response[MAX_READ_SIZE+MAX_FILE_SIZE], state_filename[MAX_FILENAME_SIZE];
+    read_PLID(PLID);
+    int found = find_last_game(PLID, filename);
+    sprintf(state_filename, "STATE_%s.txt", PLID);
+    char statefile[MAX_FILE_SIZE];
+
+    if (found == 1){
+        create_state_file(PLID, filename, statefile, 1);
+        sprintf(response, "RST ACT %s %zd %s\n", state_filename, strlen(statefile), statefile);
+    }
+    else if (found == 2){
+        create_state_file(PLID, filename, statefile, 2);
+        sprintf(response, "RST FIN %s %zd %s\n", state_filename, strlen(statefile), statefile);
+    }
+    else
+        sprintf(response, "RST NOK\n");
+
+    char *ptr = response;
+    int n_left = strlen(response);
+    while((n = write(newfd, ptr, n_left))!=0){
+        if(n == -1){
+            printf("ERROR WRITE\n");
             exit(1);
         } 
         ptr += n;
