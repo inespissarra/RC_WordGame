@@ -44,10 +44,17 @@ int main(int argc, char** argv){
         else if(!strcmp(command, "quit") || !strcmp(command, "q")){
             if(trial_number>0)
                 quit(hostname, port, buffer, PLID, &trial_number);
+            else{
+                printf("There is no game in progress\n");
+            }
         }
         else if(!strcmp(command, "exit")){
             if(trial_number>0)
                 quit(hostname, port, buffer, PLID, &trial_number);
+            else{
+                printf("There is no game in progress\n");
+            }
+            printf("Bye!\n");
             break; 
         }
         else

@@ -7,11 +7,10 @@ struct addrinfo hints, *res;
 struct sockaddr_in addr;
 
 char buffer[MAX_READ_SIZE + 1];
-int file_number = 0;
 
 void TCP_command(char *port, int verbose){
 
-    TCP_open_socket(port);
+    TCP_OpenSocket(port);
     while(1){
         
         addrlen = sizeof(addr);
@@ -41,6 +40,7 @@ void TCP_command(char *port, int verbose){
                 printf("Received: %s\n", buffer);
 
             if(!strcmp(buffer, "GSB")){
+                sleep(10);
                 scoreboard(verbose);
             } else if(!strcmp(buffer, "GHL")){
                 hint(verbose);
@@ -48,13 +48,13 @@ void TCP_command(char *port, int verbose){
                 state(verbose);
             } else{
                 // Invalid command
-                printf("ERROR1\n");
+                printf("ERROR\n");
                 exit(1);
             }
             close(newfd);
             exit(0);
         } else if(c1_pid < 0){
-            printf("ERROR2\n");
+            printf("ERROR\n");
             exit(1);
         }
     }
@@ -64,10 +64,10 @@ void TCP_command(char *port, int verbose){
 
 
 
-void TCP_open_socket(char *port){
+void TCP_OpenSocket(char *port){
     fd = socket(AF_INET, SOCK_STREAM, 0);
     if(fd == -1){
-        printf("ERROR3\n");
+        printf("ERROR\n");
         exit(1);
     }
 
@@ -78,27 +78,31 @@ void TCP_open_socket(char *port){
 
     errcode = getaddrinfo(NULL, port, &hints, &res);
     if(errcode!=0){ 
-        printf("ERROR4\n");
+        printf("ERROR\n");
         exit(1);
     }
     
     n = bind(fd, res->ai_addr, res->ai_addrlen);
     if(n == -1){
-        printf("ERROR5\n");
+        printf("ERROR\n");
         exit(1);
     }
 
     if(listen(fd, 5) == -1){ // 5 is the maximum number of pending connections, can be changed (?)
-        printf("ERROR6\n");
+        printf("ERROR\n");
         exit(1);
     }
+
+    int timeout = TIMEOUT;
+    setsockopt(fd, SOL_SOCKET, SO_SNDTIMEO, (const char *) &timeout, sizeof(timeout));
+    setsockopt(fd, SOL_SOCKET, SO_RCVTIMEO, (const char *) &timeout, sizeof(timeout));
 }
 
 
 
-void write_file(char *filename, char *buffer, int verbose){
-    char imagename[MAX_FILENAME_SIZE + 1];
-    sprintf(imagename, "Dados_GS/%s", filename);
+void writeFile(char *filename, char *buffer, int verbose){
+    char imagename[MAX_FILENAME_SIZE + strlen(FOLDER_DATA) + 1];
+    sprintf(imagename, "%s%s", FOLDER_DATA, filename);
 
     FILE *fp = fopen(imagename, "r");
     if(fp == NULL){
@@ -152,12 +156,12 @@ void write_file(char *filename, char *buffer, int verbose){
     fclose(fp);
 }
 
-void read_PLID(char *PLID){
+void readPLID(char *PLID){
     int n_left = MAX_PLID_SIZE;
     while(n>0){
         n = read(newfd, PLID, n_left);
         if(n == -1){
-            printf("ERROR7\n");
+            printf("ERROR\n");
             exit(1);
         }
         PLID += n;
@@ -167,7 +171,7 @@ void read_PLID(char *PLID){
     n=0;
     while((n = read(newfd, buffer, 1))==0){ 
         if(n == -1){
-            printf("ERROR8\n");
+            printf("ERROR\n");
             exit(1);
         }
     }
@@ -175,16 +179,16 @@ void read_PLID(char *PLID){
 
 void hint(int verbose){
     char PLID[MAX_PLID_SIZE + 1];
-    read_PLID(PLID);
+    readPLID(PLID);
     if (verbose)
         printf("%s\n", PLID);
     FILE *fp;
-    char filename[MAX_FILENAME_SIZE + 1];
-    sprintf(filename, "GAMES/GAME_%s.txt", PLID);
+    char filename[MAX_FILENAME_SIZE + strlen(FOLDER_GAMES) + 1];
+    sprintf(filename, "%sGAME_%s.txt", FOLDER_GAMES, PLID);
     
     if((fp = fopen(filename, "r")) != NULL){
         // read the first line: word hint_file
-        fgets(buffer, MAX_WORD_LENGTH+MAX_FILENAME_SIZE+2, fp);
+        fgets(buffer, MAX_READ_SIZE, fp);
         fclose(fp);
 
         sscanf(buffer, "%*s %s", filename);
@@ -203,7 +207,7 @@ void hint(int verbose){
         if(verbose)
             printf("Sent: %s", buffer);
 
-        write_file(filename, buffer, verbose);
+        writeFile(filename, buffer, verbose);
 
     } else {
         sprintf(buffer, "RHL NOK\n");
@@ -217,13 +221,13 @@ void hint(int verbose){
     }
 }
 
-int find_top_scores(char sb_file[MAX_FILE_SIZE]){
+int findTopScores(char sb_file[MAX_FILE_SIZE + 1]){
     struct dirent **filelist;
     int n_entries, i_file, score, corrects, trials, i=0;
-    char fname[50], PLID[MAX_PLID_SIZE], word[MAX_WORD_LENGTH], line[MAX_READ_SIZE];
+    char fname[SCORE_FILENAME_SIZE + 1], PLID[MAX_PLID_SIZE + 1], word[MAX_WORD_LENGTH + 1];
     FILE *fp;
     
-    n_entries = scandir("SCORES/", &filelist, 0, alphasort);
+    n_entries = scandir(FOLDER_SCORES, &filelist, 0, alphasort);
     i_file = 0;
     if (n_entries < 0)
         return (0);
@@ -232,14 +236,14 @@ int find_top_scores(char sb_file[MAX_FILE_SIZE]){
         while (i++ < 10 && n_entries != 0){
             n_entries--;
             if (filelist[n_entries]->d_name[0] != '.'){
-                char filename[MAX_FILENAME_SIZE];
+                char filename[MAX_FILENAME_SIZE + strlen(FOLDER_SCORES) + 1];
                 strcpy(filename, filelist[n_entries]->d_name);
-                sprintf(fname, "SCORES/%s", filename);
+                sprintf(fname, "%s%s", FOLDER_SCORES, filename);
                 fp = fopen(fname, "r");
                 if (fp != NULL){
                     fscanf(fp, "%d %s %s %d %d", &score, PLID, word, &corrects, &trials);
-                    sprintf(line, " %d - %03d  %s  %-40s%-14d%d\n", ++i_file, score, PLID, word, corrects, trials);
-                    strcat(sb_file, line);
+                    sprintf(buffer, " %d - %03d  %s  %-40s%-14d%d\n", ++i_file, score, PLID, word, corrects, trials);
+                    strcat(sb_file, buffer);
                     fclose(fp);
                 }
             }
@@ -248,19 +252,20 @@ int find_top_scores(char sb_file[MAX_FILE_SIZE]){
         free(filelist);
         strcat(sb_file, "\n");
     }
+    printf("findTopScores done\n");
     return i_file;
 }
 
 void scoreboard(int verbose){
-    char sb_file[MAX_FILE_SIZE], response[MAX_READ_SIZE+MAX_FILE_SIZE];
-    int n_scores = find_top_scores(sb_file);
+    char sb_file[MAX_FILE_SIZE + 1], response[MAX_READ_SIZE+MAX_FILE_SIZE + 1];
+    int n_scores = findTopScores(sb_file);
     printf("find top score done, n_scores=%d\n", n_scores);
 
     if (n_scores == 0)
         sprintf(response, "RSB EMPTY\n");
     
     else{
-        sprintf(response, "RSB OK TOPSCORES_%07d.txt %zu %s\n", ++file_number, strlen(sb_file), sb_file);
+        sprintf(response, "RSB OK TOPSCORES_%07d.txt %zu %s\n", getppid(), strlen(sb_file), sb_file);
     }
 
     char *ptr = response;
@@ -278,41 +283,30 @@ void scoreboard(int verbose){
 }
 
 
-int find_last_game(char *PLID, char *filename){
-    DIR *d;
+int findLastGame(char *PLID, char *filename){
     struct dirent *dir, **filelist;
     int n_entries, found;
-    char dirname[20], fname[MAX_FILENAME_SIZE], gamefile[MAX_PLID_SIZE+9];
-    sprintf(gamefile, "GAME_%s.txt", PLID);
-    d=opendir("./GAMES");
-    if (d){
-        while ((dir = readdir(d)) != NULL){
-            strcpy(fname, dir->d_name);
-            if (!strcmp(gamefile, fname)){
-                sprintf(filename, "GAMES/%s", fname);
-                return 1;
-            }
+    char dirname[strlen(FOLDER_GAMES) + MAX_PLID_SIZE + 2];
 
-        }
-        closedir(d);
-    }
 
-    sprintf(dirname, "GAMES/%s/", PLID);
-    n_entries = scandir("SCORES/", &filelist, 0, alphasort);
+    sprintf(dirname, "%s%s/", FOLDER_GAMES, PLID);
+    n_entries = scandir(dirname, &filelist, 0, alphasort);
     found = 0;
 
-    if (n_entries < 0)
+    if (n_entries <= 0)
         return (0);
     else{
         while (n_entries--){
+            printf("n_entries=%d\n", n_entries);
             if (filelist[n_entries]->d_name[0] != '.'){
-                char dname[MAX_FILENAME_SIZE];
+                char dname[MAX_FILENAME_SIZE + 1];
                 strcpy(dname, filelist[n_entries]->d_name);
-                sprintf(filename, "GAMES/%s/%s", PLID, dname);
-                found = 2;
+                printf("dname=%s\n", dname);
+                sprintf(filename, "%s%s/%s", FOLDER_GAMES, PLID, dname);
+                found = 1;
             }
             free(filelist[n_entries]);
-            if (found == 2)
+            if (found == 1)
                 break;
         }
         free(filelist);
@@ -320,16 +314,19 @@ int find_last_game(char *PLID, char *filename){
     return found;
 }
 
-void create_state_file(char *PLID, char *filename, char file[MAX_FILE_SIZE], int status){
+void createStateFile(char *PLID, char *filename, char file[MAX_FILE_SIZE + 1], int status){
     FILE *fp = fopen(filename, "r");
-    int n_trials=1;
-    char code, previous[MAX_WORD_LENGTH], transactions[MAX_FILE_SIZE], line[MAX_WORD_LENGTH+21], word[MAX_WORD_LENGTH], hintfile[MAX_FILENAME_SIZE], game[MAX_WORD_LENGTH];
+    int n_trials=0;
+    char code, previous[MAX_WORD_LENGTH + 1], transactions[MAX_FILE_SIZE + 1];
+    char game[MAX_WORD_LENGTH + 1], word[MAX_WORD_LENGTH + 1], hintfile[MAX_FILENAME_SIZE + 1];
     
-    fgets(buffer, MAX_WORD_LENGTH+MAX_FILENAME_SIZE+2, fp);
+    fgets(buffer, MAX_READ_SIZE, fp);
     sscanf(buffer, "%s %s", word, hintfile);
     memset(game, '_', strlen(word));
+    game[strlen(word)] = '\0';
+    transactions[0] = '\0';
 
-    while(fgets(buffer, MAX_WORD_LENGTH+MAX_FILENAME_SIZE+2, fp) != NULL){
+    while(fgets(buffer, MAX_READ_SIZE, fp) != NULL){
         sscanf(buffer, "%c %s", &code, previous);
         if (code == 'T'){
             if (strchr(word, previous[0])!=NULL){
@@ -338,34 +335,36 @@ void create_state_file(char *PLID, char *filename, char file[MAX_FILE_SIZE], int
                     if (word[i] == previous[0])
                         game[i] = previous[0];
                 
-                sprintf(line, "     Letter trial: %c - TRUE\n", previous[0]);
+                sprintf(buffer, "     Letter trial: %c - TRUE\n", previous[0]);
             }
             else
-                sprintf(line, "     Letter trial: %c - FALSE\n", previous[0]);
+                sprintf(buffer, "     Letter trial: %c - FALSE\n", previous[0]);
         }
         else if (code == 'G')
-            sprintf(line, "     Word guess: %s\n", previous);
+            sprintf(buffer, "     Word guess: %s\n", previous);
         
-        strcat(transactions, line);
+        strcat(transactions, buffer);
         n_trials ++;
     }
+    file[0] = '\0';
 
-    if (status == 1){
-        sprintf(line, "     Solved so far: %s\n", game);
-        strcat(transactions, line);
-        sprintf(file, "     Active  game found for player %s\n     --- Transaction found: %d ---\n", PLID, n_trials);
+    if (status){
+        sprintf(buffer, "     Solved so far: %s\n", game);
+        strcat(transactions, buffer);
+        sprintf(file, "     Active  game found for player %s\n     --- Transactions found: %d ---\n", PLID, n_trials);
         strcat(file, transactions);
     }
 
     else{
-        sscanf(filename, "%*s_%*s_%c.txt", &code);
+        printf("yeah\n");
+        sscanf(filename + strlen(FOLDER_GAMES) + MAX_PLID_SIZE + strlen("YYYYMMDD_HHMMSS_") + 1, "%c", &code);
         if (code == 'W')
-            sprintf(line, "     Termination: WIN\n");
+            sprintf(buffer, "     Termination: WIN\n");
         else if (code == 'F')
-            sprintf(line, "     Termination - FAIL\n");
+            sprintf(buffer, "     Termination - FAIL\n");
         else if (code == 'Q')
-            sprintf(line, "     Termination - QUIT\n");
-        strcat(transactions, line);
+            sprintf(buffer, "     Termination - QUIT\n");
+        strcat(transactions, buffer);
         sprintf(file, "     Last finalized game for player %s\n     Word: %s; Hint file: %s\n     --- Transaction found: %d ---\n", PLID, word, hintfile, n_trials);
         strcat(file, transactions);
 
@@ -375,28 +374,35 @@ void create_state_file(char *PLID, char *filename, char file[MAX_FILE_SIZE], int
 
 
 void state(int verbose){
-    char filename[MAX_FILENAME_SIZE], PLID[MAX_PLID_SIZE+1], response[MAX_READ_SIZE+MAX_FILE_SIZE], state_filename[MAX_FILENAME_SIZE];
-    read_PLID(PLID);
-    int found = find_last_game(PLID, filename);
+    char filename[MAX_FILENAME_SIZE + strlen(FOLDER_GAMES) + 1], state_filename[MAX_FILENAME_SIZE + 1];
+    char PLID[MAX_PLID_SIZE+1], response[MAX_READ_SIZE+MAX_FILE_SIZE + 1];
+    readPLID(PLID);
+    if(verbose)
+        printf("PLID: %s\n", PLID);
+    sprintf(filename, "%sGAME_%s.txt", FOLDER_GAMES, PLID);
     sprintf(state_filename, "STATE_%s.txt", PLID);
-    char statefile[MAX_FILE_SIZE];
+    char statefile[MAX_FILE_SIZE + 1];
 
-    if (found == 1){
-        create_state_file(PLID, filename, statefile, 1);
+    if(!access(filename, F_OK)){ 
+        createStateFile(PLID, filename, statefile, 1);
         sprintf(response, "RST ACT %s %zd %s\n", state_filename, strlen(statefile), statefile);
     }
-    else if (found == 2){
-        create_state_file(PLID, filename, statefile, 2);
-        sprintf(response, "RST FIN %s %zd %s\n", state_filename, strlen(statefile), statefile);
+    else {
+        int found = findLastGame(PLID, filename);
+        if (found){
+            createStateFile(PLID, filename, statefile, 0);
+            sprintf(response, "RST FIN %s %zd %s\n", state_filename, strlen(statefile), statefile);
+        }
+        else
+            sprintf(response, "RST NOK\n");
     }
-    else
-        sprintf(response, "RST NOK\n");
+
 
     char *ptr = response;
     int n_left = strlen(response);
     while((n = write(newfd, ptr, n_left))!=0){
         if(n == -1){
-            printf("ERROR WRITE\n");
+            printf("ERROR\n");
             exit(1);
         } 
         ptr += n;

@@ -3,7 +3,9 @@
 
 int main(int argc, char** argv){
 
-    char *word_file = argv[1];
+    char word_file[strlen(FOLDER_DATA) + MAX_FILENAME_SIZE + 1];
+    strcpy(word_file, FOLDER_DATA);
+    strcat(word_file, argv[1]);
     char *port = "58082";
     int verbose = 0;
 
@@ -26,7 +28,10 @@ int main(int argc, char** argv){
         UDP_command(word_file, port, verbose);
         exit(0);
     } else if(c2_pid == 0){
-        TCP_command(port, verbose);
+        TCP_command
+        
+        
+        (port, verbose);
         exit(0);
     } else{
         /* Parent code goes here */

@@ -20,13 +20,13 @@
 #include "constants.h"
 
 void TCP_command(char *port, int verbose);
-void TCP_open_socket(char *port);
-void write_file(char *filename, char *buffer, int verbose);
-void read_PLID(char *PLID);
+void TCP_OpenSocket(char *port);
+void writeFile(char *filename, char *buffer, int verbose);
+void readPLID(char *PLID);
 void hint(int verbose);
-int find_top_scores(char sb_file[MAX_FILE_SIZE]);
+int findTopScores(char sb_file[MAX_FILE_SIZE + 1]);
 void scoreboard(int verbose);
-int find_last_game(char *PLID, char *filename);
-void create_state_file(char *PLID, char *filename, char file[MAX_FILE_SIZE], int status);
+int findLastGame(char *PLID, char *filename);
+void createStateFile(char *PLID, char *filename, char *file, int status);
 void state(int verbose);
 #endif

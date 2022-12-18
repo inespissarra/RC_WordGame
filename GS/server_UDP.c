@@ -70,10 +70,14 @@ void UDP_connect(char *port){
         printf("ERROR\n");
         exit(1);
     }
+
+    int timeout = TIMEOUT;
+    setsockopt(fd, SOL_SOCKET, SO_SNDTIMEO, (const char *) &timeout, sizeof(timeout));
+    setsockopt(fd, SOL_SOCKET, SO_RCVTIMEO, (const char *) &timeout, sizeof(timeout));
 }
 
 
-void get_new_word(char *word_file){
+void getNewWord(char *word_file){
     FILE *fp = fopen(word_file, "r");
     if(fp==NULL){
         printf("ERROR\n");
@@ -96,8 +100,8 @@ void start(char *word_file, int verbose){
     char PLID[MAX_PLID_SIZE + 1];
     sscanf(ptr, "%s", PLID);
     FILE *fp;
-    char filename[MAX_FILENAME_SIZE];
-    sprintf(filename, "GAMES/GAME_%s.txt", PLID);
+    char filename[MAX_FILENAME_SIZE + strlen(FOLDER_GAMES) + 1];
+    sprintf(filename, "%sGAME_%s.txt", FOLDER_GAMES, PLID);
 
     if(!access(filename, F_OK)){ 
         // File exists
@@ -121,14 +125,14 @@ void start(char *word_file, int verbose){
         fclose(fp);
 
     } else{
-        get_new_word(word_file);
+        getNewWord(word_file);
         sscanf(buffer, "%s", word);
         fp = fopen(filename, "w");
         fprintf(fp, "%s", buffer);
         fclose(fp);
     }
 
-    int len = strlen(word), max_errors = get_max_errors(len);
+    int len = strlen(word), max_errors = getMaxErrors(len);
 
     sprintf(buffer, "RSG OK %d %d\n", len, max_errors);
     
@@ -142,8 +146,8 @@ void start(char *word_file, int verbose){
 }
 
 
-int count_unique_char(char word[MAX_WORD_LENGTH]){
-    char unique[MAX_WORD_LENGTH];
+int countDiffChar(char word[MAX_WORD_LENGTH + 1]){
+    char unique[MAX_WORD_LENGTH + 1];
     int length = strlen(word);
     int n_unique = 0;
     for (int i=0; i<length; i++){
@@ -155,7 +159,7 @@ int count_unique_char(char word[MAX_WORD_LENGTH]){
     return n_unique;
 }
 
-int get_max_errors(int length){
+int getMaxErrors(int length){
     if(length < 7)
         return 7;
     else if(length < 11)
@@ -164,17 +168,17 @@ int get_max_errors(int length){
         return 9;
 }
 
-void get_command(char code, char *command){
+void getCommand(char code, char *command){
     if(code=='T')
         strcpy(command, "RLG");
     else
         strcpy(command, "RWG");
 }
 
-void get_state(FILE *fp, char *word, char *move, int state[4], char current_code){
+void getState(FILE *fp, char *word, char *move, int state[4], char current_code){
     int n_trials = 1, errors = 0, corrects=0, dup = 0;
-    char previous[MAX_WORD_LENGTH], code;
-    while(fgets(buffer, MAX_WORD_LENGTH+3, fp) != NULL){
+    char previous[MAX_WORD_LENGTH + 1], code;
+    while(fgets(buffer, MAX_READ_SIZE, fp) != NULL){
         sscanf(buffer, "%c %s", &code, previous);
         
         if ((current_code == 'T' && code == 'T' && previous[0] == *move) || (current_code == 'G' && code == 'G' && !strcmp(word, previous)))
@@ -198,7 +202,7 @@ void get_state(FILE *fp, char *word, char *move, int state[4], char current_code
 void move(char *filename, char *move, char code, char *PLID, int trial_number){
     FILE *fp;
     char command[4];
-    get_command(code, command);
+    getCommand(code, command);
     if((fp = fopen(filename, "r")) != NULL){
         fgets(buffer, MAX_READ_SIZE, fp);
         
@@ -206,12 +210,12 @@ void move(char *filename, char *move, char code, char *PLID, int trial_number){
         sscanf(buffer, "%s ", word);
 
         int state[4];
-        get_state(fp, word, move, state, code);
+        getState(fp, word, move, state, code);
         fclose(fp);
 
         if (state[N_TRIALS] != trial_number){
             if(state[N_TRIALS]-1==trial_number && state[DUP])
-                valid_move(word, move, code, state, PLID, filename);
+                validMove(word, move, code, state, PLID, filename);
             else
                 sprintf(buffer, "%s INV %d\n", command, state[N_TRIALS]);
         }
@@ -222,37 +226,27 @@ void move(char *filename, char *move, char code, char *PLID, int trial_number){
             sprintf(buffer, "%c %s\n", code, move);
             fputs(buffer, fp);
             fclose(fp);
-            valid_move(word, move, code, state, PLID, filename);
+            validMove(word, move, code, state, PLID, filename);
         }
     } else
         sprintf(buffer, "%s ERR\n", command);
 }
 
-void create_score_file(char* PLID, char *word, int corrects, int trials){
-    char filename[MAX_FILENAME_SIZE], text[MAX_PLID_SIZE+MAX_WORD_LENGTH+11];
-    time_t t = time(NULL);
-    struct tm tm = *localtime(&t);
-    int score = (corrects/trials)*100;
-
-    sprintf(filename, "SCORES/%03d_%s_%d%d%d_%d%d%d.txt", score, PLID, tm.tm_year, tm.tm_mon, tm.tm_mday, tm.tm_hour, tm.tm_min, tm.tm_sec);
-
-    FILE* fp = fopen(filename, "w");
-    fprintf(fp, "%03d %s %s %d %d\n", score, PLID, word, corrects, trials);
-    fclose(fp);
-}
-
-void valid_move(char *word, char *move, char code, int state[4], char *PLID, char *filename){
-    int len = strlen(word), max_errors = get_max_errors(len);
+void validMove(char *word, char *move, char code, int state[4], char *PLID, char *filename){
+    int len = strlen(word), max_errors = getMaxErrors(len);
 
     char command[4];
-    get_command(code, command);
+    getCommand(code, command);
 
     if ((code == 'T' && strchr(word, *move)!=NULL) || (code == 'G' && !strcmp(word, move))){
         // Correct
-        if (code == 'G' || state[CORRECTS]+1 == count_unique_char(word)){
+        if (code == 'G' || state[CORRECTS]+1 == countDiffChar(word)){
             sprintf(buffer, "%s WIN %d\n", command, state[N_TRIALS]);
-            finish_game(PLID, filename, 'W');
-            create_score_file(PLID, word, state[CORRECTS]+1, state[N_TRIALS]);
+            printf("Player %s won the game!\n", PLID);
+            finishGame(PLID, filename, 'W');
+            printf("Player %s won the game!\n", PLID);
+            createScoreFile(PLID, word, state[CORRECTS]+1, state[N_TRIALS]);
+            printf("Player %s won the game!\n", PLID);
         }
         else{
             char indexes[MAX_WORD_LENGTH*3], pos[4];
@@ -273,7 +267,7 @@ void valid_move(char *word, char *move, char code, int state[4], char *PLID, cha
             sprintf(buffer, "%s NOK %d\n", command, state[N_TRIALS]);
         else if (state[ERRORS] == max_errors){
             sprintf(buffer, "%s OVR %d\n", command, state[N_TRIALS]);
-            finish_game(PLID, filename, 'F');
+            finishGame(PLID, filename, 'F');
         }
     }
 }
@@ -287,8 +281,8 @@ void play(int verbose){
 
     if(n==3){
         // Correct format
-        char filename[MAX_FILENAME_SIZE];
-        sprintf(filename, "GAMES/GAME_%s.txt", PLID);
+        char filename[MAX_FILENAME_SIZE + strlen(FOLDER_GAMES) + 1];
+        sprintf(filename, "%sGAME_%s.txt", FOLDER_GAMES, PLID);
         move(filename, letter, 'T', PLID, trial_number);
     } else
         sprintf(buffer, "RLG ERR\n");
@@ -304,14 +298,14 @@ void play(int verbose){
 
 void guess(int verbose){
     int trial_number;
-    char PLID[MAX_PLID_SIZE + 1], guess[MAX_WORD_LENGTH];
+    char PLID[MAX_PLID_SIZE + 1], guess[MAX_WORD_LENGTH + 1];
 
     n = sscanf(buffer + 4, "%s %s %d\n", PLID, guess, &trial_number);
 
     if(n==3){ 
         // Correct format
-        char filename[MAX_FILENAME_SIZE];
-        sprintf(filename, "GAMES/GAME_%s.txt", PLID);
+        char filename[MAX_FILENAME_SIZE + strlen(FOLDER_GAMES) + 1];
+        sprintf(filename, "%sGAME_%s.txt", FOLDER_GAMES, PLID);
         move(filename, guess, 'G', PLID, trial_number);
     } else
         sprintf(buffer, "RLG ERR\n");
@@ -330,11 +324,11 @@ void quit(int verbose){
     char *ptr = buffer + 4;
     char PLID[MAX_PLID_SIZE + 1];
     n = sscanf(ptr, "%s\n", PLID);
-    char filename[MAX_FILENAME_SIZE];
-    sprintf(filename, "GAMES/GAME_%s.txt", PLID);
+    char filename[MAX_FILENAME_SIZE + strlen(FOLDER_GAMES) + 1];
+    sprintf(filename, "%sGAME_%s.txt", FOLDER_GAMES, PLID);
     if(!access(filename, F_OK)){ 
         // File exists
-        finish_game(PLID, filename, 'Q');
+        finishGame(PLID, filename, 'Q');
         sprintf(buffer, "RQT OK\n");
     } else{
         sprintf(buffer, "RQT ERR\n");
@@ -349,12 +343,12 @@ void quit(int verbose){
         printf("Sent: %s\n", buffer);
 }
 
-void finish_game(char *PLID, char *filename, char state){
-    char buf[MAX_FILENAME_SIZE];
+void finishGame(char *PLID, char *filename, char state){
+    char buf[MAX_FILENAME_SIZE + strlen(FOLDER_GAMES) + MAX_PLID_SIZE + 2];
     time_t t = time(NULL);
     struct tm tm = *localtime(&t);
 
-    sprintf(buf, "GAMES/%s", PLID);
+    sprintf(buf, "%s%s", FOLDER_GAMES, PLID);
 
     DIR* dir = opendir(buf);
     if(dir){
@@ -365,6 +359,20 @@ void finish_game(char *PLID, char *filename, char state){
         perror("opendir");
         exit(1);
     }
-    sprintf(buf, "GAMES/%s/%d%d%d_%d%d%d_%c.txt", PLID, tm.tm_year, tm.tm_mon, tm.tm_mday, tm.tm_hour, tm.tm_min, tm.tm_sec, state);
+    sprintf(buf, "%s%s/%04d%02d%02d_%02d%02d%02d_%c.txt", FOLDER_GAMES, PLID, tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_mday, tm.tm_hour, tm.tm_min, tm.tm_sec, state);
     rename(filename, buf);
+}
+
+void createScoreFile(char* PLID, char *word, int corrects, int trials){
+    char filename[SCORE_FILENAME_SIZE + 1];
+    printf("%lu\n", sizeof(filename));
+    time_t t = time(NULL);
+    struct tm tm = *localtime(&t);
+    int score = (int)(((float)corrects/(float)trials)*100);
+
+    sprintf(filename, "%s%03d_%s_%04d%02d%02d_%02d%02d%02d.txt", FOLDER_SCORES, score, PLID, tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_mday, tm.tm_hour, tm.tm_min, tm.tm_sec);
+
+    FILE* fp = fopen(filename, "w");
+    fprintf(fp, "%03d %s %s %d %d\n", score, PLID, word, corrects, trials);
+    fclose(fp);
 }

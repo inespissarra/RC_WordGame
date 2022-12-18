@@ -25,19 +25,19 @@
 
 void UDP_command(char *word_file, char *port, int verbose);
 void UDP_connect(char *port);
-void get_new_word(char *word_file);
+void getNewWord(char *word_file);
 void start(char *word_file, int verbose);
-int count_unique_char(char word[MAX_WORD_LENGTH]);
-int get_max_errors(int length);
-void get_command(char code, char *command);
-void get_state(FILE *fp, char *word, char *move, int state[4], char current_code);
+int countDiffChar(char word[MAX_WORD_LENGTH + 1]);
+int getMaxErrors(int length);
+void getCommand(char code, char *command);
+void getState(FILE *fp, char *word, char *move, int state[4], char current_code);
 void move(char *filename, char *move, char code, char *PLID, int trial_number);
-void create_score_file(char* PLID, char *word, int corrects, int trials);
-void valid_move(char *word, char *move, char code, int state[4], char *PLID, char *filename);
+void validMove(char *word, char *move, char code, int state[4], char *PLID, char *filename);
 void play(int verbose);
 void guess(int verbose);
 void quit(int verbose);
-void finish_game(char *PLID, char *filename, char state);
+void finishGame(char *PLID, char *filename, char state);
+void createScoreFile(char* PLID, char *word, int corrects, int trials);
 
 
 #endif
