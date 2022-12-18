@@ -159,6 +159,7 @@ int countDiffChar(char word[MAX_WORD_LENGTH + 1]){
     return n_unique;
 }
 
+
 int getMaxErrors(int length){
     if(length < 7)
         return 7;
@@ -168,12 +169,14 @@ int getMaxErrors(int length){
         return 9;
 }
 
+
 void getCommand(char code, char *command){
     if(code=='T')
         strcpy(command, "RLG");
     else
         strcpy(command, "RWG");
 }
+
 
 void getState(FILE *fp, char *word, char *move, int state[4], char current_code){
     int n_trials = 1, errors = 0, corrects=0, dup = 0;
@@ -198,6 +201,7 @@ void getState(FILE *fp, char *word, char *move, int state[4], char current_code)
     state[ERRORS] = errors; 
     state[DUP] = dup;
 }
+
 
 void move(char *filename, char *move, char code, char *PLID, int trial_number){
     FILE *fp;
@@ -232,6 +236,7 @@ void move(char *filename, char *move, char code, char *PLID, int trial_number){
         sprintf(buffer, "%s ERR\n", command);
 }
 
+
 void validMove(char *word, char *move, char code, int state[4], char *PLID, char *filename){
     int len = strlen(word), max_errors = getMaxErrors(len);
 
@@ -242,11 +247,8 @@ void validMove(char *word, char *move, char code, int state[4], char *PLID, char
         // Correct
         if (code == 'G' || state[CORRECTS]+1 == countDiffChar(word)){
             sprintf(buffer, "%s WIN %d\n", command, state[N_TRIALS]);
-            printf("Player %s won the game!\n", PLID);
             finishGame(PLID, filename, 'W');
-            printf("Player %s won the game!\n", PLID);
             createScoreFile(PLID, word, state[CORRECTS]+1, state[N_TRIALS]);
-            printf("Player %s won the game!\n", PLID);
         }
         else{
             char indexes[MAX_WORD_LENGTH*3], pos[4];
@@ -296,6 +298,7 @@ void play(int verbose){
         printf("Sent: %s\n", buffer);
 }
 
+
 void guess(int verbose){
     int trial_number;
     char PLID[MAX_PLID_SIZE + 1], guess[MAX_WORD_LENGTH + 1];
@@ -343,6 +346,7 @@ void quit(int verbose){
         printf("Sent: %s\n", buffer);
 }
 
+
 void finishGame(char *PLID, char *filename, char state){
     char buf[MAX_FILENAME_SIZE + strlen(FOLDER_GAMES) + MAX_PLID_SIZE + 2];
     time_t t = time(NULL);
@@ -363,15 +367,17 @@ void finishGame(char *PLID, char *filename, char state){
     rename(filename, buf);
 }
 
+
 void createScoreFile(char* PLID, char *word, int corrects, int trials){
     char filename[SCORE_FILENAME_SIZE + 1];
-    printf("%lu\n", sizeof(filename));
+    
     time_t t = time(NULL);
     struct tm tm = *localtime(&t);
+
     int score = (int)(((float)corrects/(float)trials)*100);
 
     sprintf(filename, "%s%03d_%s_%04d%02d%02d_%02d%02d%02d.txt", FOLDER_SCORES, score, PLID, tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_mday, tm.tm_hour, tm.tm_min, tm.tm_sec);
-
+    
     FILE* fp = fopen(filename, "w");
     fprintf(fp, "%03d %s %s %d %d\n", score, PLID, word, corrects, trials);
     fclose(fp);

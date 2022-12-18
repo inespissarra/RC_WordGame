@@ -40,7 +40,6 @@ void TCP_command(char *port, int verbose){
                 printf("Received: %s\n", buffer);
 
             if(!strcmp(buffer, "GSB")){
-                sleep(10);
                 scoreboard(verbose);
             } else if(!strcmp(buffer, "GHL")){
                 hint(verbose);
@@ -182,6 +181,7 @@ void hint(int verbose){
     readPLID(PLID);
     if (verbose)
         printf("%s\n", PLID);
+    
     FILE *fp;
     char filename[MAX_FILENAME_SIZE + strlen(FOLDER_GAMES) + 1];
     sprintf(filename, "%sGAME_%s.txt", FOLDER_GAMES, PLID);

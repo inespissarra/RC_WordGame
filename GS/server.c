@@ -28,10 +28,7 @@ int main(int argc, char** argv){
         UDP_command(word_file, port, verbose);
         exit(0);
     } else if(c2_pid == 0){
-        TCP_command
-        
-        
-        (port, verbose);
+        TCP_command(port, verbose);
         exit(0);
     } else{
         /* Parent code goes here */
