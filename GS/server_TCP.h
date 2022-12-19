@@ -21,11 +21,11 @@
 
 void TCP_command(char *port, int verbose);
 void TCP_OpenSocket(char *port);
-void writeFile(char *filename, char *buffer, int verbose);
-void readPLID(char *PLID);
+void writeFile(char *filename, char *buffer);
+void readPLID(char *PLID, int verbose);
 void hint(int verbose);
 int findTopScores(char sb_file[MAX_FILE_SIZE + 1]);
-void scoreboard(int verbose);
+void scoreboard();
 int findLastGame(char *PLID, char *filename);
 void createStateFile(char *PLID, char *filename, char *file, int status);
 void state(int verbose);

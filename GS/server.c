@@ -30,9 +30,12 @@ int main(int argc, char** argv){
     } else if(c2_pid == 0){
         TCP_command(port, verbose);
         exit(0);
-    } else{
+    } else if(c1_pid > 0 && c2_pid > 0){
         /* Parent code goes here */
         while ((wpid = wait(&status)) > 0);
-        printf("else\n");
+    } else{
+        /* Error */
+        perror("fork");
+        exit(1);
     }
 }

@@ -36,15 +36,26 @@ void TCP_command(char *port, int verbose){
             } while(*(ptr-1)!=' ' && *(ptr-1)!='\n');
             *(ptr-1) = '\0';
             
-            if(verbose)
-                printf("Received: %s\n", buffer);
+            if(verbose){
+                printf("----------------------\n");
+                char host[NI_MAXHOST],service[NI_MAXSERV];
+
+                if((errcode=getnameinfo((struct sockaddr *)&addr,addrlen,host,sizeof host,service,sizeof service,0))!=0) 
+                    fprintf(stderr,"error: getnameinfo: %s\n",gai_strerror(errcode));
+                else
+                    printf("Sent by:\n\thost: %s\n\tport: %s\n", host, service);
+                printf("Command: %s\n", buffer);
+            }
 
             if(!strcmp(buffer, "GSB")){
-                scoreboard(verbose);
+                scoreboard();
+                printf("----------------------\n\n");
             } else if(!strcmp(buffer, "GHL")){
                 hint(verbose);
+                printf("----------------------\n\n");
             } else if(!strcmp(buffer, "STA")){
                 state(verbose);
+                printf("----------------------\n\n");
             } else{
                 // Invalid command
                 printf("ERROR\n");
@@ -99,7 +110,7 @@ void TCP_OpenSocket(char *port){
 
 
 
-void writeFile(char *filename, char *buffer, int verbose){
+void writeFile(char *filename, char *buffer){
     char imagename[MAX_FILENAME_SIZE + strlen(FOLDER_DATA) + 1];
     sprintf(imagename, "%s%s", FOLDER_DATA, filename);
 
@@ -125,8 +136,6 @@ void writeFile(char *filename, char *buffer, int verbose){
         ptr += n;
         n_left -= n;
     }
-    if(verbose)
-        printf("%s*file*\n\n", buffer);
 
     fp = fopen(imagename, "r");
     if(fp == NULL){
@@ -155,18 +164,19 @@ void writeFile(char *filename, char *buffer, int verbose){
     fclose(fp);
 }
 
-void readPLID(char *PLID){
+void readPLID(char *PLID, int verbose){
     int n_left = MAX_PLID_SIZE;
+    char *ptr = PLID;
     while(n>0){
-        n = read(newfd, PLID, n_left);
+        n = read(newfd, ptr, n_left);
         if(n == -1){
             printf("ERROR\n");
             exit(1);
         }
-        PLID += n;
+        ptr += n;
         n_left -= n;
     }
-    *PLID = '\0';
+    *ptr = '\0';
     n=0;
     while((n = read(newfd, buffer, 1))==0){ 
         if(n == -1){
@@ -174,13 +184,13 @@ void readPLID(char *PLID){
             exit(1);
         }
     }
+    if (verbose)
+        printf("PLID: %s\n", PLID);
 }
 
 void hint(int verbose){
     char PLID[MAX_PLID_SIZE + 1];
-    readPLID(PLID);
-    if (verbose)
-        printf("%s\n", PLID);
+    readPLID(PLID, verbose);
     
     FILE *fp;
     char filename[MAX_FILENAME_SIZE + strlen(FOLDER_GAMES) + 1];
@@ -204,10 +214,8 @@ void hint(int verbose){
             ptr += n;
             n_left -= n;
         }
-        if(verbose)
-            printf("Sent: %s", buffer);
 
-        writeFile(filename, buffer, verbose);
+        writeFile(filename, buffer);
 
     } else {
         sprintf(buffer, "RHL NOK\n");
@@ -216,8 +224,6 @@ void hint(int verbose){
             printf("ERROR\n");
             exit(1);
         }
-        if(verbose)
-            printf("Sent: %s\n", buffer);
     }
 }
 
@@ -252,14 +258,12 @@ int findTopScores(char sb_file[MAX_FILE_SIZE + 1]){
         free(filelist);
         strcat(sb_file, "\n");
     }
-    printf("findTopScores done\n");
     return i_file;
 }
 
-void scoreboard(int verbose){
+void scoreboard(){
     char sb_file[MAX_FILE_SIZE + 1], response[MAX_READ_SIZE+MAX_FILE_SIZE + 1];
     int n_scores = findTopScores(sb_file);
-    printf("find top score done, n_scores=%d\n", n_scores);
 
     if (n_scores == 0)
         sprintf(response, "RSB EMPTY\n");
@@ -278,8 +282,6 @@ void scoreboard(int verbose){
         ptr += n;
         n_left -= n;
     }
-    if(verbose)
-        printf("Sent: %s\n", response);
 }
 
 
@@ -376,9 +378,7 @@ void createStateFile(char *PLID, char *filename, char file[MAX_FILE_SIZE + 1], i
 void state(int verbose){
     char filename[MAX_FILENAME_SIZE + strlen(FOLDER_GAMES) + 1], state_filename[MAX_FILENAME_SIZE + 1];
     char PLID[MAX_PLID_SIZE+1], response[MAX_READ_SIZE+MAX_FILE_SIZE + 1];
-    readPLID(PLID);
-    if(verbose)
-        printf("PLID: %s\n", PLID);
+    readPLID(PLID, verbose);
     sprintf(filename, "%sGAME_%s.txt", FOLDER_GAMES, PLID);
     sprintf(state_filename, "STATE_%s.txt", PLID);
     char statefile[MAX_FILE_SIZE + 1];
@@ -408,6 +408,4 @@ void state(int verbose){
         ptr += n;
         n_left -= n;
     }
-    if(verbose)
-        printf("Sent: %s\n", response);
 }

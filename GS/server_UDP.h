@@ -38,6 +38,7 @@ void guess(int verbose);
 void quit(int verbose);
 void finishGame(char *PLID, char *filename, char state);
 void createScoreFile(char* PLID, char *word, int corrects, int trials);
+void printVerbose(char *command, char *PLID);
 
 
 #endif
