@@ -191,9 +191,6 @@ void readPLID(char *PLID, int verbose){
 void hint(int verbose){
     char PLID[MAX_PLID_SIZE + 1];
     readPLID(PLID, verbose);
-
-    if()
-    
     FILE *fp;
     char filename[MAX_FILENAME_SIZE + strlen(FOLDER_GAMES) + 1];
     sprintf(filename, "%sGAME_%s.txt", FOLDER_GAMES, PLID);

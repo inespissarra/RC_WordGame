@@ -33,9 +33,8 @@ void UDP_command(char *word_file, char *port, int verbose){
         } else if(!strcmp(command, "QUT")){
             quit(verbose);
         } else{
-            // Invalid command
-            printf("ERROR\n");
-            exit(1);
+            sprintf(buffer_UDP, "ERR");
+            sendtoUDP();
         }
         freeaddrinfo(res_UDP);
         close(fd_UDP);
@@ -75,6 +74,14 @@ void UDP_connect(char *port){
     setsockopt(fd_UDP, SOL_SOCKET, SO_RCVTIMEO, (const char *) &timeout, sizeof(timeout));
 }
 
+void sendtoUDP(){
+    n_UDP = sendto(fd_UDP, buffer_UDP, strlen(buffer_UDP), 0, (struct sockaddr*)&addr_UDP, addrlen_UDP);
+    if(n_UDP == -1){
+        fprintf(stderr, "error: %s\n", strerror(errno));
+        exit(1);
+    }
+}
+
 
 void getNewWord(char *word_file){
     FILE *fp = fopen(word_file, "r");
@@ -92,58 +99,77 @@ void getNewWord(char *word_file){
     fclose(fp);
 }
 
+int isNumeric(char *str){
+    while(*str){
+        if(!isdigit(*str))
+            return 0;
+        str++;
+    }
+    return 1;
+}
+
+int validGuess(char* word){
+    for(int i = 0; i < strlen(word); i++){
+        if(!isalpha(word[i])){
+            printf(INVALID_WORD);
+            return 0;
+        }
+    }
+    return 1;
+}
+
 
 void start(char *word_file, int verbose){
-    char *ptr = buffer_UDP + 4;
     char word[MAX_WORD_LENGTH + 1];
-    char PLID[MAX_PLID_SIZE + 1];
-    sscanf(ptr, "%s", PLID);
-    FILE *fp;
-    char filename[MAX_FILENAME_SIZE + strlen(FOLDER_GAMES) + 1];
-    sprintf(filename, "%sGAME_%s.txt", FOLDER_GAMES, PLID);
+    char PLID[MAX_PLID_SIZE + 1], n;
+
+    if(sscanf(buffer_UDP + 4, "%s%c", PLID, &n)!=2 || n!='\n' || strlen(PLID) != MAX_PLID_SIZE || !isNumeric(PLID)){
+        if(verbose)
+            printVerbose(NULL, NULL, NULL, -1);
+        
+        sprintf(buffer_UDP, "RSG ERR\n");
+    } else {
+
+        FILE *fp;
+        char filename[MAX_FILENAME_SIZE + strlen(FOLDER_GAMES) + 1];
+        sprintf(filename, "%sGAME_%s.txt", FOLDER_GAMES, PLID);
+
+        if(verbose)
+            printVerbose("SNG", PLID, NULL, -1);
+
+        if(!access(filename, F_OK)){ 
+            // File exists
+            fp = fopen(filename, "r");
+            fgets(buffer_UDP, MAX_READ_SIZE, fp);
+            sscanf(buffer_UDP, "%s", word);
+
+            if(fgets(buffer_UDP, MAX_READ_SIZE, fp)!=NULL){
+                fclose(fp);
+                sprintf(buffer_UDP, "RSG NOK\n");
+                sendtoUDP();
+                return;
+            }
+            fclose(fp);
+
+        } else{
+            getNewWord(word_file);
+            sscanf(buffer_UDP, "%s", word);
+            fp = fopen(filename, "w");
+            fprintf(fp, "%s", buffer_UDP);
+            fclose(fp);
+        }
+
+        int len = strlen(word), max_errors = getMaxErrors(len);
+
+        sprintf(buffer_UDP, "RSG OK %d %d\n", len, max_errors);
+    }
 
     if(verbose){
-        printf("----------------------\n");
-        printVerbose("SNG", PLID);
+        printf("\nSent: %s\n", buffer_UDP);
         printf("----------------------\n\n");
     }
-
-    if(!access(filename, F_OK)){ 
-        // File exists
-        fp = fopen(filename, "r");
-        fgets(buffer_UDP, MAX_READ_SIZE, fp);
-        sscanf(buffer_UDP, "%s", word);
-
-        if(fgets(buffer_UDP, MAX_READ_SIZE, fp)!=NULL){ 
-            // No play was yet received
-            fclose(fp);
-            sprintf(buffer_UDP, "RSG NOK\n");
-            n_UDP = sendto(fd_UDP, buffer_UDP, strlen(buffer_UDP), 0, (struct sockaddr*)&addr_UDP, addrlen_UDP);
-            if(n_UDP == -1){
-                fprintf(stderr, "error: %s\n", strerror(errno));
-                exit(1);
-            }
-            return;
-        }
-        fclose(fp);
-
-    } else{
-        getNewWord(word_file);
-        sscanf(buffer_UDP, "%s", word);
-        fp = fopen(filename, "w");
-        fprintf(fp, "%s", buffer_UDP);
-        fclose(fp);
-    }
-
-    int len = strlen(word), max_errors = getMaxErrors(len);
-
-    sprintf(buffer_UDP, "RSG OK %d %d\n", len, max_errors);
     
-    n_UDP = sendto(fd_UDP, buffer_UDP, strlen(buffer_UDP), 0, (struct sockaddr*)&addr_UDP, addrlen_UDP);
-    if(n_UDP == -1){
-        fprintf(stderr, "error: %s\n", strerror(errno));
-        exit(1);
-    }
+    sendtoUDP();
 }
 
 
@@ -277,91 +303,92 @@ void validMove(char *word, char *move, char code, int state[4], char *PLID, char
 
 
 void play(int verbose){
-    char letter[2], PLID[MAX_PLID_SIZE + 1];;
+    char letter[2], PLID[MAX_PLID_SIZE + 1], n;
     int trial_number;
 
-    n_UDP = sscanf(buffer_UDP + 4, "%s %s %d\n", PLID, letter, &trial_number);
+    n_UDP = sscanf(buffer_UDP + 4, "%s %s %d%c", PLID, letter, &trial_number, &n);
 
-    if(verbose){
-        printf("----------------------\n");
-        printVerbose("PLG", PLID);
-        printf("Letter: %s\n", letter);
-        printf("Trial number: %d\n", trial_number);
-        printf("----------------------\n\n");
-    }
-
-    if(n_UDP==3){
+    if(n_UDP==4 && n=='\n' && strlen(PLID) == MAX_PLID_SIZE && isNumeric(PLID) && isalpha(letter[0])){
         // Correct format
+        if(verbose)
+            printVerbose("PLG", PLID, letter, trial_number);
+
         char filename[MAX_FILENAME_SIZE + strlen(FOLDER_GAMES) + 1];
         sprintf(filename, "%sGAME_%s.txt", FOLDER_GAMES, PLID);
         move(filename, letter, 'T', PLID, trial_number);
-    } else
+    } else{
+        if(verbose)
+            printVerbose(NULL, NULL, NULL, -1);
         sprintf(buffer_UDP, "RLG ERR\n");
-
-    n_UDP = sendto(fd_UDP, buffer_UDP, strlen(buffer_UDP), 0, (struct sockaddr*)&addr_UDP, addrlen_UDP);
-    if(n_UDP == -1){
-        fprintf(stderr, "error: %s\n", strerror(errno));
-        exit(1);
     }
+
+    if(verbose){
+        printf("Sent: %s\n", buffer_UDP);
+        printf("----------------------\n\n");
+    }
+
+    sendtoUDP();
 }
 
 
 void guess(int verbose){
     int trial_number;
-    char PLID[MAX_PLID_SIZE + 1], guess[MAX_WORD_LENGTH + 1];
+    char PLID[MAX_PLID_SIZE + 1], guess[MAX_WORD_LENGTH + 1], n;
 
-    n_UDP = sscanf(buffer_UDP + 4, "%s %s %d\n", PLID, guess, &trial_number);
+    n_UDP = sscanf(buffer_UDP + 4, "%s %s %d%c", PLID, guess, &trial_number, &n);
 
-    if(verbose){
-        printf("----------------------\n");
-        printVerbose("PWG", PLID);
-        printf("Guess: %s\n", guess);
-        printf("Trial number: %d\n", trial_number);
-        printf("----------------------\n\n");
-    }
-
-    if(n_UDP==3){ 
+    if(n_UDP==4 && n=='\n' && strlen(PLID) == MAX_PLID_SIZE && isNumeric(PLID) && strlen(guess) <= MAX_WORD_LENGTH && strlen(guess) >= MIN_WORD_LENGTH && validGuess(guess)){
         // Correct format
+
+        if(verbose)
+            printVerbose("PWG", PLID, guess, trial_number);
+
         char filename[MAX_FILENAME_SIZE + strlen(FOLDER_GAMES) + 1];
         sprintf(filename, "%sGAME_%s.txt", FOLDER_GAMES, PLID);
         move(filename, guess, 'G', PLID, trial_number);
-    } else
+    } else {
+        if(verbose)
+            printVerbose(NULL, NULL, NULL, -1);
         sprintf(buffer_UDP, "RLG ERR\n");
-
-    n_UDP = sendto(fd_UDP, buffer_UDP, strlen(buffer_UDP), 0, (struct sockaddr*)&addr_UDP, addrlen_UDP);
-    if(n_UDP == -1){
-        fprintf(stderr, "error: %s\n", strerror(errno));
-        exit(1);
     }
+
+    if(verbose){
+        printf("Sent: %s\n", buffer_UDP);
+        printf("----------------------\n\n");
+    }
+
+    sendtoUDP();
 }
 
 
 void quit(int verbose){
-    char *ptr = buffer_UDP + 4;
-    char PLID[MAX_PLID_SIZE + 1];
-    n_UDP = sscanf(ptr, "%s\n", PLID);
-    char filename[MAX_FILENAME_SIZE + strlen(FOLDER_GAMES) + 1];
-    sprintf(filename, "%sGAME_%s.txt", FOLDER_GAMES, PLID);
+    char PLID[MAX_PLID_SIZE + 1], n;
+
+    if(sscanf(buffer_UDP + 4, "%s%c", PLID, &n)!=2 || n!='\n' || strlen(PLID) != MAX_PLID_SIZE || !isNumeric(PLID)){
+        if(verbose)
+            printVerbose(NULL, NULL, NULL, -1);
+        sprintf(buffer_UDP, "RQT ERR\n");
+    } else{
+        char filename[MAX_FILENAME_SIZE + strlen(FOLDER_GAMES) + 1];
+        sprintf(filename, "%sGAME_%s.txt", FOLDER_GAMES, PLID);
+
+        if(verbose)
+            printVerbose("QUT", PLID, NULL, -1);
+
+        if(!access(filename, F_OK)){ 
+            // File exists
+            finishGame(PLID, filename, 'Q');
+            sprintf(buffer_UDP, "RQT OK\n");
+        } else{
+            sprintf(buffer_UDP, "RQT NOK\n");
+        }
+    }
 
     if(verbose){
-        printf("----------------------\n");
-        printVerbose("QUT", PLID);
+        printf("Sent: %s\n", buffer_UDP);
         printf("----------------------\n\n");
     }
-
-    if(!access(filename, F_OK)){ 
-        // File exists
-        finishGame(PLID, filename, 'Q');
-        sprintf(buffer_UDP, "RQT OK\n");
-    } else{
-        sprintf(buffer_UDP, "RQT ERR\n");
-    }
-
-    n_UDP = sendto(fd_UDP, buffer_UDP, strlen(buffer_UDP), 0, (struct sockaddr*)&addr_UDP, addrlen_UDP);
-    if(n_UDP == -1){
-        fprintf(stderr, "error: %s\n", strerror(errno));
-        exit(1);
-    }
+    sendtoUDP();
 }
 
 
@@ -401,12 +428,25 @@ void createScoreFile(char* PLID, char *word, int corrects, int trials){
     fclose(fp);
 }
 
-void printVerbose(char *command, char *PLID){
+void printVerbose(char *command, char *PLID, char *move, int trial_number){
     char host[NI_MAXHOST],service[NI_MAXSERV];
+
+    printf("----------------------\n");
 
     if((errcode_UDP=getnameinfo((struct sockaddr *)&addr_UDP,addrlen_UDP,host,sizeof host,service,sizeof service,0))!=0) 
         fprintf(stderr,"error: getnameinfo: %s\n",gai_strerror(errcode_UDP));
     else
         printf("Sent by:\n\thost: %s\n\tport: %s\n\n", host, service);
-    printf("Command: %s\nPLID: %s\n", command, PLID);
+        
+    if(command!=NULL){
+        printf("Command: %s\n", command);
+        if(PLID!=NULL)
+            printf("PLID: %s\n", PLID);
+        if(move!=NULL)
+            printf("Move: %s\n", move);
+        if(trial_number!=-1)
+            printf("Trial number: %d\n", trial_number);
+    } else{
+        printf("Received: %s", buffer_UDP);
+    }
 }

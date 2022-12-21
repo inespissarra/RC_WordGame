@@ -1,7 +1,8 @@
 #ifndef CONSTANTS_H
 #define CONSTANTS_H
 
-#define MAX_WORD_LENGTH 31
+#define MAX_WORD_LENGTH 30
+#define MIN_WORD_LENGTH 3
 #define MAX_FILENAME_SIZE 40
 #define MAX_FSIZE_SIZE 10
 #define MAX_READ_SIZE 128

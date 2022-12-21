@@ -324,7 +324,6 @@ void play(char* hostname, char* port, char *buffer, char *PLID, char *game, int 
 int validGuess(char* word){
     for(int i = 0; i < strlen(word); i++){
         if(!isalpha(word[i])){
-            printf(INVALID_WORD);
             return 0;
         }
     }
@@ -334,8 +333,8 @@ int validGuess(char* word){
 
 void guess(char* hostname, char* port, char *buffer, char *PLID, int *trial_number, int *errors){
     char word[MAX_WORD_LENGTH + 1];
-    if(!scanf(" %s", word) || !validGuess(word) || strlen(word) < 3 || strlen(word) > 30){
-        printf(INVALID_WORD);
+    if(!scanf(" %s", word) || !validGuess(word) || strlen(word) < MIN_WORD_LENGTH || strlen(word) > MAX_WORD_LENGTH){
+        printf(INVALID_COMMAND);
         return;
     }
     sprintf(buffer, "PWG %s %s %d\n", PLID, word, *trial_number);

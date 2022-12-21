@@ -15,6 +15,7 @@
 #include <time.h>
 #include <sys/stat.h>
 #include <dirent.h>
+#include <ctype.h>
 
 #include "constants.h"
 
@@ -25,7 +26,10 @@
 
 void UDP_command(char *word_file, char *port, int verbose);
 void UDP_connect(char *port);
+void sendtoUDP();
 void getNewWord(char *word_file);
+int isNumeric(char *str);
+int validGuess(char* word);
 void start(char *word_file, int verbose);
 int countDiffChar(char word[MAX_WORD_LENGTH + 1]);
 int getMaxErrors(int length);
@@ -38,7 +42,7 @@ void guess(int verbose);
 void quit(int verbose);
 void finishGame(char *PLID, char *filename, char state);
 void createScoreFile(char* PLID, char *word, int corrects, int trials);
-void printVerbose(char *command, char *PLID);
+void printVerbose(char *command, char *PLID, char *move, int trial_number);
 
 
 #endif
