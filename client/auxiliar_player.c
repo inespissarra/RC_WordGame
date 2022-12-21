@@ -334,7 +334,7 @@ int validGuess(char* word){
 void guess(char* hostname, char* port, char *buffer, char *PLID, int *trial_number, int *errors){
     char word[MAX_WORD_LENGTH + 1];
     if(!scanf(" %s", word) || !validGuess(word) || strlen(word) < MIN_WORD_LENGTH || strlen(word) > MAX_WORD_LENGTH){
-        printf(INVALID_COMMAND);
+        printf(INVALID_WORD);
         return;
     }
     sprintf(buffer, "PWG %s %s %d\n", PLID, word, *trial_number);
