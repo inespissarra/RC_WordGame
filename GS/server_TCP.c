@@ -154,7 +154,7 @@ void writeFile(char *filename, char *buffer_TCP){
     }
     buffer_TCP[0] = '\n';
 
-    write(newfd_TCP, buffer_TCP, 1);
+    writeToTCP(buffer_TCP, 1);
 
     fclose(fp);
 }
@@ -205,11 +205,7 @@ void hint(int verbose){
 
     } else {
         sprintf(buffer_TCP, "RHL NOK\n");
-        while((n_TCP= write(newfd_TCP, buffer_TCP, strlen(buffer_TCP)))!=0)
-        if(n_TCP== -1){
-            printf("ERROR\n");
-            exit(1);
-        }
+        writeToTCP(buffer_TCP, strlen(buffer_TCP));
     }
 }
 
