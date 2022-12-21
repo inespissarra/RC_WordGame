@@ -61,7 +61,8 @@ void TCP_command(char *port, int verbose){
                 state(verbose);
             } else{
                 // Invalid command
-                printf(INVALID_COMMAND);
+                sprintf(buffer_TCP, "ERR\n");
+                writeToTCP(buffer_TCP, 4);
             }
             if(verbose)
                 printf("----------------------\n\n");

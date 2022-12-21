@@ -22,6 +22,7 @@
 void TCP_command(char *port, int verbose);
 void TCP_OpenSocket(char *port);
 void writeFile(char *filename, char *buffer);
+void writeToTCP(char *ptr, int to_write);
 void readPLID(char *PLID, int verbose);
 void hint(int verbose);
 int findTopScores(char sb_file[MAX_FILE_SIZE + 1]);

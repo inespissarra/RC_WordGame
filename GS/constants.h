@@ -16,13 +16,6 @@
 #define FOLDER_SCORES "SCORES/"
 #define FOLDER_DATA "Dados_GS/"
 
-#define INVALID_COMMAND "Invalid command\n"
-#define INVALID_PLID "Invalid PLID\n"
-#define INVALID_LETTER "Invalid letter\n"
-#define INVALID_TRIAL "Invalid trial number\n"
-#define INVALID_WORD "Invalid word.\nThe word cannot contain numbers and must have length between 3 and 30.\n"
-#define FORMAT_ERROR "Format error\n"
-
 #define BYE_SERVER "Server is shutting down\n"
 
 #endif

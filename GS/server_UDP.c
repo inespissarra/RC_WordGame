@@ -111,7 +111,6 @@ int isNumeric(char *str){
 int validGuess(char* word){
     for(int i = 0; i < strlen(word); i++){
         if(!isalpha(word[i])){
-            printf(INVALID_WORD);
             return 0;
         }
     }
