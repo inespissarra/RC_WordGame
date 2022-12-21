@@ -1,20 +1,20 @@
 #include "server_TCP.h"
 
-int fd, newfd, errno, errcode;
-ssize_t n;
-socklen_t addrlen;
-struct addrinfo hints, *res;
-struct sockaddr_in addr;
+int fd_TCP, newfd_TCP, errno_TCP, errcode_TCP;
+ssize_t n_TCP;
+socklen_t addrlen_TCP;
+struct addrinfo hints_TCP, *res_TCP;
+struct sockaddr_in addr_TCP;
 
-char buffer[MAX_READ_SIZE + 1];
+char buffer_TCP[MAX_READ_SIZE + 1];
 
 void TCP_command(char *port, int verbose){
 
     TCP_OpenSocket(port);
     while(1){
         
-        addrlen = sizeof(addr);
-        if((newfd = accept(fd, (struct sockaddr*)&addr, &addrlen)) == -1){
+        addrlen_TCP = sizeof(addr_TCP);
+        if((newfd_TCP = accept(fd_TCP, (struct sockaddr*)&addr_TCP, &addrlen_TCP)) == -1){
             printf("ERROR\n");
             exit(1);
         }
@@ -24,21 +24,21 @@ void TCP_command(char *port, int verbose){
         c1_pid = fork();
         if(c1_pid == 0){
             // child process
-            char *ptr = buffer;
+            char *ptr = buffer_TCP;
 
             struct timeval timeout;
             timeout.tv_sec = TIMEOUT;
             timeout.tv_usec = 0;
-            setsockopt(newfd, SOL_SOCKET, SO_SNDTIMEO, (const char *) &timeout, sizeof(timeout));
-            setsockopt(newfd, SOL_SOCKET, SO_RCVTIMEO, (const char *) &timeout, sizeof(timeout));
+            setsockopt(newfd_TCP, SOL_SOCKET, SO_SNDTIMEO, (const char *) &timeout, sizeof(timeout));
+            setsockopt(newfd_TCP, SOL_SOCKET, SO_RCVTIMEO, (const char *) &timeout, sizeof(timeout));
     
             do {
-                n = read(newfd, ptr, 1);
-                if(n == -1){
+                n_TCP= read(newfd_TCP, ptr, 1);
+                if(n_TCP== -1){
                     printf("ERROR\n");
                     exit(1);
                 }
-                ptr+=n;
+                ptr+=n_TCP;
             } while(*(ptr-1)!=' ' && *(ptr-1)!='\n');
             *(ptr-1) = '\0';
             
@@ -46,21 +46,21 @@ void TCP_command(char *port, int verbose){
                 printf("----------------------\n");
                 char host[NI_MAXHOST],service[NI_MAXSERV];
 
-                if((errcode=getnameinfo((struct sockaddr *)&addr,addrlen,host,sizeof host,service,sizeof service,0))!=0) 
-                    fprintf(stderr,"error: getnameinfo: %s\n",gai_strerror(errcode));
+                if((errcode_TCP=getnameinfo((struct sockaddr *)&addr_TCP,addrlen_TCP,host,sizeof host,service,sizeof service,0))!=0) 
+                    fprintf(stderr,"error: getnameinfo: %s\n",gai_strerror(errcode_TCP));
                 else
                     printf("Sent by:\n\thost: %s\n\tport: %s\n", host, service);
-                printf("Command: %s\n", buffer);
+                printf("Command: %s\n", buffer_TCP);
             }
 
-            if(!strcmp(buffer, "GSB")){
+            if(!strcmp(buffer_TCP, "GSB")){
                 sleep(10);
                 scoreboard();
                 printf("----------------------\n\n");
-            } else if(!strcmp(buffer, "GHL")){
+            } else if(!strcmp(buffer_TCP, "GHL")){
                 hint(verbose);
                 printf("----------------------\n\n");
-            } else if(!strcmp(buffer, "STA")){
+            } else if(!strcmp(buffer_TCP, "STA")){
                 state(verbose);
                 printf("----------------------\n\n");
             } else{
@@ -68,44 +68,44 @@ void TCP_command(char *port, int verbose){
                 printf("ERROR\n");
                 exit(1);
             }
-            close(newfd);
+            close(newfd_TCP);
             exit(0);
         } else if(c1_pid < 0){
             printf("ERROR\n");
             exit(1);
         }
     }
-    freeaddrinfo(res);
-    close(fd);
+    freeaddrinfo(res_TCP);
+    close(fd_TCP);
 }
 
 
 
 void TCP_OpenSocket(char *port){
-    fd = socket(AF_INET, SOCK_STREAM, 0);
-    if(fd == -1){
+    fd_TCP = socket(AF_INET, SOCK_STREAM, 0);
+    if(fd_TCP == -1){
         printf("ERROR\n");
         exit(1);
     }
 
-    memset(&hints, 0, sizeof hints);
-    hints.ai_family = AF_INET;
-    hints.ai_socktype = SOCK_STREAM;
-    hints.ai_flags = AI_PASSIVE;
+    memset(&hints_TCP, 0, sizeof hints_TCP);
+    hints_TCP.ai_family = AF_INET;
+    hints_TCP.ai_socktype = SOCK_STREAM;
+    hints_TCP.ai_flags = AI_PASSIVE;
 
-    errcode = getaddrinfo(NULL, port, &hints, &res);
-    if(errcode!=0){ 
+    errcode_TCP = getaddrinfo(NULL, port, &hints_TCP, &res_TCP);
+    if(errcode_TCP!=0){ 
         printf("ERROR\n");
         exit(1);
     }
     
-    n = bind(fd, res->ai_addr, res->ai_addrlen);
-    if(n == -1){
+    n_TCP= bind(fd_TCP, res_TCP->ai_addr, res_TCP->ai_addrlen);
+    if(n_TCP== -1){
         printf("ERROR\n");
         exit(1);
     }
 
-    if(listen(fd, 5) == -1){ // 5 is the maximum number of pending connections, can be changed (?)
+    if(listen(fd_TCP, 5) == -1){ // 5 is the maximum number of pending connections, can be changed (?)
         printf("ERROR\n");
         exit(1);
     }
@@ -113,7 +113,7 @@ void TCP_OpenSocket(char *port){
 
 
 
-void writeFile(char *filename, char *buffer){
+void writeFile(char *filename, char *buffer_TCP){
     char imagename[MAX_FILENAME_SIZE + strlen(FOLDER_DATA) + 1];
     sprintf(imagename, "%s%s", FOLDER_DATA, filename);
 
@@ -128,16 +128,16 @@ void writeFile(char *filename, char *buffer){
     fclose(fp);
 
     // send filename and filesize
-    sprintf(buffer, "%s %d ", filename, size);
-    char *ptr = buffer;
-    int n_left = strlen(buffer);
-    while((n = write(newfd, ptr, n_left))!=0){
-        if(n == -1){
+    sprintf(buffer_TCP, "%s %d ", filename, size);
+    char *ptr = buffer_TCP;
+    int n_left = strlen(buffer_TCP);
+    while((n_TCP= write(newfd_TCP, ptr, n_left))!=0){
+        if(n_TCP== -1){
             printf("ERROR\n");
             exit(1);
         }
-        ptr += n;
-        n_left -= n;
+        ptr += n_TCP;
+        n_left -= n_TCP;
     }
 
     fp = fopen(imagename, "r");
@@ -148,21 +148,21 @@ void writeFile(char *filename, char *buffer){
 
     // send file's content
     while (size > 0){
-        n_left = fread(buffer, 1, MAX_READ_SIZE, fp);
-        ptr = buffer;
-        while((n = write(newfd, ptr, n_left))!=0){
-            if(n == -1){
+        n_left = fread(buffer_TCP, 1, MAX_READ_SIZE, fp);
+        ptr = buffer_TCP;
+        while((n_TCP= write(newfd_TCP, ptr, n_left))!=0){
+            if(n_TCP== -1){
                 printf("ERROR\n");
                 exit(1);
             }
-            ptr += n;
-            n_left -= n;
-            size -=n;
+            ptr += n_TCP;
+            n_left -= n_TCP;
+            size -=n_TCP;
         }
     }
-    buffer[0] = '\n';
+    buffer_TCP[0] = '\n';
 
-    write(newfd, buffer, 1);
+    write(newfd_TCP, buffer_TCP, 1);
 
     fclose(fp);
 }
@@ -170,19 +170,19 @@ void writeFile(char *filename, char *buffer){
 void readPLID(char *PLID, int verbose){
     int n_left = MAX_PLID_SIZE;
     char *ptr = PLID;
-    while(n>0){
-        n = read(newfd, ptr, n_left);
-        if(n == -1){
+    while(n_TCP>0){
+        n_TCP= read(newfd_TCP, ptr, n_left);
+        if(n_TCP== -1){
             printf("ERROR\n");
             exit(1);
         }
-        ptr += n;
-        n_left -= n;
+        ptr += n_TCP;
+        n_left -= n_TCP;
     }
     *ptr = '\0';
-    n=0;
-    while((n = read(newfd, buffer, 1))==0){ 
-        if(n == -1){
+    n_TCP=0;
+    while((n_TCP= read(newfd_TCP, buffer_TCP, 1))==0){ 
+        if(n_TCP== -1){
             printf("ERROR\n");
             exit(1);
         }
@@ -201,29 +201,29 @@ void hint(int verbose){
     
     if((fp = fopen(filename, "r")) != NULL){
         // read the first line: word hint_file
-        fgets(buffer, MAX_READ_SIZE, fp);
+        fgets(buffer_TCP, MAX_READ_SIZE, fp);
         fclose(fp);
 
-        sscanf(buffer, "%*s %s", filename);
-        sprintf(buffer, "RHL OK ");
+        sscanf(buffer_TCP, "%*s %s", filename);
+        sprintf(buffer_TCP, "RHL OK ");
 
-        char *ptr = buffer;
-        int n_left = strlen(buffer);
-        while((n = write(newfd, ptr, n_left))!=0){
-            if(n == -1){
+        char *ptr = buffer_TCP;
+        int n_left = strlen(buffer_TCP);
+        while((n_TCP= write(newfd_TCP, ptr, n_left))!=0){
+            if(n_TCP== -1){
                 printf("ERROR\n");
                 exit(1);
             } 
-            ptr += n;
-            n_left -= n;
+            ptr += n_TCP;
+            n_left -= n_TCP;
         }
 
-        writeFile(filename, buffer);
+        writeFile(filename, buffer_TCP);
 
     } else {
-        sprintf(buffer, "RHL NOK\n");
-        while((n = write(newfd, buffer, strlen(buffer)))!=0)
-        if(n == -1){
+        sprintf(buffer_TCP, "RHL NOK\n");
+        while((n_TCP= write(newfd_TCP, buffer_TCP, strlen(buffer_TCP)))!=0)
+        if(n_TCP== -1){
             printf("ERROR\n");
             exit(1);
         }
@@ -251,8 +251,8 @@ int findTopScores(char sb_file[MAX_FILE_SIZE + 1]){
                 fp = fopen(fname, "r");
                 if (fp != NULL){
                     fscanf(fp, "%d %s %s %d %d", &score, PLID, word, &corrects, &trials);
-                    sprintf(buffer, " %d - %03d  %s  %-40s%-14d%d\n", ++i_file, score, PLID, word, corrects, trials);
-                    strcat(sb_file, buffer);
+                    sprintf(buffer_TCP, " %d - %03d  %s  %-40s%-14d%d\n", ++i_file, score, PLID, word, corrects, trials);
+                    strcat(sb_file, buffer_TCP);
                     fclose(fp);
                 }
             }
@@ -277,13 +277,13 @@ void scoreboard(){
 
     char *ptr = response;
     int n_left = strlen(response);
-    while((n = write(newfd, ptr, n_left))!=0){
-        if(n == -1){
+    while((n_TCP= write(newfd_TCP, ptr, n_left))!=0){
+        if(n_TCP== -1){
             printf("ERROR\n");
             exit(1);
         } 
-        ptr += n;
-        n_left -= n;
+        ptr += n_TCP;
+        n_left -= n_TCP;
     }
 }
 
@@ -325,14 +325,14 @@ void createStateFile(char *PLID, char *filename, char file[MAX_FILE_SIZE + 1], i
     char code, previous[MAX_WORD_LENGTH + 1], transactions[MAX_FILE_SIZE + 1];
     char game[MAX_WORD_LENGTH + 1], word[MAX_WORD_LENGTH + 1], hintfile[MAX_FILENAME_SIZE + 1];
     
-    fgets(buffer, MAX_READ_SIZE, fp);
-    sscanf(buffer, "%s %s", word, hintfile);
+    fgets(buffer_TCP, MAX_READ_SIZE, fp);
+    sscanf(buffer_TCP, "%s %s", word, hintfile);
     memset(game, '_', strlen(word));
     game[strlen(word)] = '\0';
     transactions[0] = '\0';
 
-    while(fgets(buffer, MAX_READ_SIZE, fp) != NULL){
-        sscanf(buffer, "%c %s", &code, previous);
+    while(fgets(buffer_TCP, MAX_READ_SIZE, fp) != NULL){
+        sscanf(buffer_TCP, "%c %s", &code, previous);
         if (code == 'T'){
             if (strchr(word, previous[0])!=NULL){
 
@@ -340,22 +340,22 @@ void createStateFile(char *PLID, char *filename, char file[MAX_FILE_SIZE + 1], i
                     if (word[i] == previous[0])
                         game[i] = previous[0];
                 
-                sprintf(buffer, "     Letter trial: %c - TRUE\n", previous[0]);
+                sprintf(buffer_TCP, "     Letter trial: %c - TRUE\n", previous[0]);
             }
             else
-                sprintf(buffer, "     Letter trial: %c - FALSE\n", previous[0]);
+                sprintf(buffer_TCP, "     Letter trial: %c - FALSE\n", previous[0]);
         }
         else if (code == 'G')
-            sprintf(buffer, "     Word guess: %s\n", previous);
+            sprintf(buffer_TCP, "     Word guess: %s\n", previous);
         
-        strcat(transactions, buffer);
+        strcat(transactions, buffer_TCP);
         n_trials ++;
     }
     file[0] = '\0';
 
     if (status){
-        sprintf(buffer, "     Solved so far: %s\n", game);
-        strcat(transactions, buffer);
+        sprintf(buffer_TCP, "     Solved so far: %s\n", game);
+        strcat(transactions, buffer_TCP);
         sprintf(file, "     Active  game found for player %s\n     --- Transactions found: %d ---\n", PLID, n_trials);
         strcat(file, transactions);
     }
@@ -364,12 +364,12 @@ void createStateFile(char *PLID, char *filename, char file[MAX_FILE_SIZE + 1], i
         printf("yeah\n");
         sscanf(filename + strlen(FOLDER_GAMES) + MAX_PLID_SIZE + strlen("YYYYMMDD_HHMMSS_") + 1, "%c", &code);
         if (code == 'W')
-            sprintf(buffer, "     Termination: WIN\n");
+            sprintf(buffer_TCP, "     Termination: WIN\n");
         else if (code == 'F')
-            sprintf(buffer, "     Termination - FAIL\n");
+            sprintf(buffer_TCP, "     Termination - FAIL\n");
         else if (code == 'Q')
-            sprintf(buffer, "     Termination - QUIT\n");
-        strcat(transactions, buffer);
+            sprintf(buffer_TCP, "     Termination - QUIT\n");
+        strcat(transactions, buffer_TCP);
         sprintf(file, "     Last finalized game for player %s\n     Word: %s; Hint file: %s\n     --- Transaction found: %d ---\n", PLID, word, hintfile, n_trials);
         strcat(file, transactions);
 
@@ -403,12 +403,12 @@ void state(int verbose){
 
     char *ptr = response;
     int n_left = strlen(response);
-    while((n = write(newfd, ptr, n_left))!=0){
-        if(n == -1){
+    while((n_TCP= write(newfd_TCP, ptr, n_left))!=0){
+        if(n_TCP== -1){
             printf("ERROR\n");
             exit(1);
         } 
-        ptr += n;
-        n_left -= n;
+        ptr += n_TCP;
+        n_left -= n_TCP;
     }
 }

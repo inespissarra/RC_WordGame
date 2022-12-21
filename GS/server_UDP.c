@@ -1,13 +1,13 @@
 #include "server_UDP.h"
 
-int fd, newfd, errno, errcode;
-ssize_t n;
-socklen_t addrlen;
-struct addrinfo hints, *res;
-struct sockaddr_in addr;
+int fd_UDP, errno_UDP, errcode_UDP;
+ssize_t n_UDP;
+socklen_t addrlen_UDP;
+struct addrinfo hints_UDP, *res_UDP;
+struct sockaddr_in addr_UDP;
 
 int offset = 0;
-char buffer[MAX_READ_SIZE + 1];
+char buffer_UDP[MAX_READ_SIZE + 1];
 
 
 void UDP_command(char *word_file, char *port, int verbose){
@@ -15,15 +15,15 @@ void UDP_command(char *word_file, char *port, int verbose){
 
     while(1){
         UDP_connect(port);
-        addrlen = sizeof(addr);
-        n = recvfrom(fd, buffer, MAX_READ_SIZE, 0, (struct sockaddr*)&addr, &addrlen);
-        if(n == -1){
+        addrlen_UDP = sizeof(addr_UDP);
+        n_UDP = recvfrom(fd_UDP, buffer_UDP, MAX_READ_SIZE, 0, (struct sockaddr*)&addr_UDP, &addrlen_UDP);
+        if(n_UDP == -1){
             printf("ERROR\n");
             exit(1);
         }
-        buffer[n] = '\0';
+        buffer_UDP[n_UDP] = '\0';
 
-        sscanf(buffer, "%s", command);
+        sscanf(buffer_UDP, "%s", command);
         if(!strcmp(command, "SNG")){
             start(word_file, verbose);
         } else if(!strcmp(command, "PLG")){
@@ -37,33 +37,33 @@ void UDP_command(char *word_file, char *port, int verbose){
             printf("ERROR\n");
             exit(1);
         }
-        freeaddrinfo(res);
-        close(fd);
+        freeaddrinfo(res_UDP);
+        close(fd_UDP);
     }
 }
 
 
 void UDP_connect(char *port){
 
-    fd = socket(AF_INET, SOCK_DGRAM, 0);
-    if(fd == -1){
+    fd_UDP = socket(AF_INET, SOCK_DGRAM, 0);
+    if(fd_UDP == -1){
         printf("ERROR\n");
         exit(1);
     }
 
-    memset(&hints, 0, sizeof hints);
-    hints.ai_family = AF_INET;
-    hints.ai_socktype = SOCK_DGRAM;
-    hints.ai_flags = AI_PASSIVE;
+    memset(&hints_UDP, 0, sizeof hints_UDP);
+    hints_UDP.ai_family = AF_INET;
+    hints_UDP.ai_socktype = SOCK_DGRAM;
+    hints_UDP.ai_flags = AI_PASSIVE;
 
-    errcode = getaddrinfo(NULL, port, &hints, &res);
-    if(errcode!=0){ 
+    errcode_UDP = getaddrinfo(NULL, port, &hints_UDP, &res_UDP);
+    if(errcode_UDP!=0){ 
         printf("ERROR\n");
         exit(1);
     }
     
-    n = bind(fd, res->ai_addr, res->ai_addrlen);
-    if(n == -1){
+    n_UDP = bind(fd_UDP, res_UDP->ai_addr, res_UDP->ai_addrlen);
+    if(n_UDP == -1){
         printf("ERROR\n");
         exit(1);
     }
@@ -71,8 +71,8 @@ void UDP_connect(char *port){
     struct timeval timeout;
     timeout.tv_sec = TIMEOUT;
     timeout.tv_usec = 0;
-    setsockopt(fd, SOL_SOCKET, SO_SNDTIMEO, (const char *) &timeout, sizeof(timeout));
-    setsockopt(fd, SOL_SOCKET, SO_RCVTIMEO, (const char *) &timeout, sizeof(timeout));
+    setsockopt(fd_UDP, SOL_SOCKET, SO_SNDTIMEO, (const char *) &timeout, sizeof(timeout));
+    setsockopt(fd_UDP, SOL_SOCKET, SO_RCVTIMEO, (const char *) &timeout, sizeof(timeout));
 }
 
 
@@ -83,18 +83,18 @@ void getNewWord(char *word_file){
         exit(1);
     }
     fseek(fp, offset, SEEK_SET);
-    if(fgets(buffer, MAX_READ_SIZE, fp)==NULL){
+    if(fgets(buffer_UDP, MAX_READ_SIZE, fp)==NULL){
         offset = 0;
         rewind(fp);
-        fgets(buffer, MAX_READ_SIZE, fp);
+        fgets(buffer_UDP, MAX_READ_SIZE, fp);
     }
-    offset += strlen(buffer);
+    offset += strlen(buffer_UDP);
     fclose(fp);
 }
 
 
 void start(char *word_file, int verbose){
-    char *ptr = buffer + 4;
+    char *ptr = buffer_UDP + 4;
     char word[MAX_WORD_LENGTH + 1];
     char PLID[MAX_PLID_SIZE + 1];
     sscanf(ptr, "%s", PLID);
@@ -111,16 +111,16 @@ void start(char *word_file, int verbose){
     if(!access(filename, F_OK)){ 
         // File exists
         fp = fopen(filename, "r");
-        fgets(buffer, MAX_READ_SIZE, fp);
-        sscanf(buffer, "%s", word);
+        fgets(buffer_UDP, MAX_READ_SIZE, fp);
+        sscanf(buffer_UDP, "%s", word);
 
-        if(fgets(buffer, MAX_READ_SIZE, fp)!=NULL){ 
+        if(fgets(buffer_UDP, MAX_READ_SIZE, fp)!=NULL){ 
             // No play was yet received
             fclose(fp);
-            sprintf(buffer, "RSG NOK\n");
-            n = sendto(fd, buffer, strlen(buffer), 0, (struct sockaddr*)&addr, addrlen);
-            if(n == -1){
-                fprintf(stderr, "error: %s\n", strerror(errno));
+            sprintf(buffer_UDP, "RSG NOK\n");
+            n_UDP = sendto(fd_UDP, buffer_UDP, strlen(buffer_UDP), 0, (struct sockaddr*)&addr_UDP, addrlen_UDP);
+            if(n_UDP == -1){
+                fprintf(stderr, "error: %s\n", strerror(errno_UDP));
                 exit(1);
             }
             return;
@@ -129,19 +129,19 @@ void start(char *word_file, int verbose){
 
     } else{
         getNewWord(word_file);
-        sscanf(buffer, "%s", word);
+        sscanf(buffer_UDP, "%s", word);
         fp = fopen(filename, "w");
-        fprintf(fp, "%s", buffer);
+        fprintf(fp, "%s", buffer_UDP);
         fclose(fp);
     }
 
     int len = strlen(word), max_errors = getMaxErrors(len);
 
-    sprintf(buffer, "RSG OK %d %d\n", len, max_errors);
+    sprintf(buffer_UDP, "RSG OK %d %d\n", len, max_errors);
     
-    n = sendto(fd, buffer, strlen(buffer), 0, (struct sockaddr*)&addr, addrlen);
-    if(n == -1){
-        fprintf(stderr, "error: %s\n", strerror(errno));
+    n_UDP = sendto(fd_UDP, buffer_UDP, strlen(buffer_UDP), 0, (struct sockaddr*)&addr_UDP, addrlen_UDP);
+    if(n_UDP == -1){
+        fprintf(stderr, "error: %s\n", strerror(errno_UDP));
         exit(1);
     }
 }
@@ -182,8 +182,8 @@ void getCommand(char code, char *command){
 void getState(FILE *fp, char *word, char *move, int state[4], char current_code){
     int n_trials = 1, errors = 0, corrects=0, dup = 0;
     char previous[MAX_WORD_LENGTH + 1], code;
-    while(fgets(buffer, MAX_READ_SIZE, fp) != NULL){
-        sscanf(buffer, "%c %s", &code, previous);
+    while(fgets(buffer_UDP, MAX_READ_SIZE, fp) != NULL){
+        sscanf(buffer_UDP, "%c %s", &code, previous);
         
         if ((current_code == 'T' && code == 'T' && previous[0] == *move) || (current_code == 'G' && code == 'G' && !strcmp(word, previous)))
             // if the letter/word was sent in a previous trial
@@ -209,10 +209,10 @@ void move(char *filename, char *move, char code, char *PLID, int trial_number){
     char command[4];
     getCommand(code, command);
     if((fp = fopen(filename, "r")) != NULL){
-        fgets(buffer, MAX_READ_SIZE, fp);
+        fgets(buffer_UDP, MAX_READ_SIZE, fp);
         
         char word[MAX_WORD_LENGTH + 1];
-        sscanf(buffer, "%s ", word);
+        sscanf(buffer_UDP, "%s ", word);
 
         int state[4];
         getState(fp, word, move, state, code);
@@ -222,19 +222,19 @@ void move(char *filename, char *move, char code, char *PLID, int trial_number){
             if(state[N_TRIALS]-1==trial_number && state[DUP])
                 validMove(word, move, code, state, PLID, filename);
             else
-                sprintf(buffer, "%s INV %d\n", command, state[N_TRIALS]);
+                sprintf(buffer_UDP, "%s INV %d\n", command, state[N_TRIALS]);
         }
         else if(state[DUP])
-            sprintf(buffer, "%s DUP %d\n", command, state[N_TRIALS]);
+            sprintf(buffer_UDP, "%s DUP %d\n", command, state[N_TRIALS]);
         else{
             fp = fopen(filename, "a");
-            sprintf(buffer, "%c %s\n", code, move);
-            fputs(buffer, fp);
+            sprintf(buffer_UDP, "%c %s\n", code, move);
+            fputs(buffer_UDP, fp);
             fclose(fp);
             validMove(word, move, code, state, PLID, filename);
         }
     } else
-        sprintf(buffer, "%s ERR\n", command);
+        sprintf(buffer_UDP, "%s ERR\n", command);
 }
 
 
@@ -247,7 +247,7 @@ void validMove(char *word, char *move, char code, int state[4], char *PLID, char
     if ((code == 'T' && strchr(word, *move)!=NULL) || (code == 'G' && !strcmp(word, move))){
         // Correct
         if (code == 'G' || state[CORRECTS]+1 == countDiffChar(word)){
-            sprintf(buffer, "%s WIN %d\n", command, state[N_TRIALS]);
+            sprintf(buffer_UDP, "%s WIN %d\n", command, state[N_TRIALS]);
             finishGame(PLID, filename, 'W');
             createScoreFile(PLID, word, state[CORRECTS]+1, state[N_TRIALS]);
         }
@@ -262,14 +262,14 @@ void validMove(char *word, char *move, char code, int state[4], char *PLID, char
                     n++;
                 }
             }
-            sprintf(buffer, "%s OK %d %d %s\n", command, state[N_TRIALS], n, indexes);
+            sprintf(buffer_UDP, "%s OK %d %d %s\n", command, state[N_TRIALS], n, indexes);
         }
     } else {
         // Not correct
         if (state[ERRORS] < max_errors)
-            sprintf(buffer, "%s NOK %d\n", command, state[N_TRIALS]);
+            sprintf(buffer_UDP, "%s NOK %d\n", command, state[N_TRIALS]);
         else if (state[ERRORS] == max_errors){
-            sprintf(buffer, "%s OVR %d\n", command, state[N_TRIALS]);
+            sprintf(buffer_UDP, "%s OVR %d\n", command, state[N_TRIALS]);
             finishGame(PLID, filename, 'F');
         }
     }
@@ -280,7 +280,7 @@ void play(int verbose){
     char letter[2], PLID[MAX_PLID_SIZE + 1];;
     int trial_number;
 
-    n = sscanf(buffer + 4, "%s %s %d\n", PLID, letter, &trial_number);
+    n_UDP = sscanf(buffer_UDP + 4, "%s %s %d\n", PLID, letter, &trial_number);
 
     if(verbose){
         printf("----------------------\n");
@@ -290,17 +290,17 @@ void play(int verbose){
         printf("----------------------\n\n");
     }
 
-    if(n==3){
+    if(n_UDP==3){
         // Correct format
         char filename[MAX_FILENAME_SIZE + strlen(FOLDER_GAMES) + 1];
         sprintf(filename, "%sGAME_%s.txt", FOLDER_GAMES, PLID);
         move(filename, letter, 'T', PLID, trial_number);
     } else
-        sprintf(buffer, "RLG ERR\n");
+        sprintf(buffer_UDP, "RLG ERR\n");
 
-    n = sendto(fd, buffer, strlen(buffer), 0, (struct sockaddr*)&addr, addrlen);
-    if(n == -1){
-        fprintf(stderr, "error: %s\n", strerror(errno));
+    n_UDP = sendto(fd_UDP, buffer_UDP, strlen(buffer_UDP), 0, (struct sockaddr*)&addr_UDP, addrlen_UDP);
+    if(n_UDP == -1){
+        fprintf(stderr, "error: %s\n", strerror(errno_UDP));
         exit(1);
     }
 }
@@ -310,7 +310,7 @@ void guess(int verbose){
     int trial_number;
     char PLID[MAX_PLID_SIZE + 1], guess[MAX_WORD_LENGTH + 1];
 
-    n = sscanf(buffer + 4, "%s %s %d\n", PLID, guess, &trial_number);
+    n_UDP = sscanf(buffer_UDP + 4, "%s %s %d\n", PLID, guess, &trial_number);
 
     if(verbose){
         printf("----------------------\n");
@@ -320,26 +320,26 @@ void guess(int verbose){
         printf("----------------------\n\n");
     }
 
-    if(n==3){ 
+    if(n_UDP==3){ 
         // Correct format
         char filename[MAX_FILENAME_SIZE + strlen(FOLDER_GAMES) + 1];
         sprintf(filename, "%sGAME_%s.txt", FOLDER_GAMES, PLID);
         move(filename, guess, 'G', PLID, trial_number);
     } else
-        sprintf(buffer, "RLG ERR\n");
+        sprintf(buffer_UDP, "RLG ERR\n");
 
-    n = sendto(fd, buffer, strlen(buffer), 0, (struct sockaddr*)&addr, addrlen);
-    if(n == -1){
-        fprintf(stderr, "error: %s\n", strerror(errno));
+    n_UDP = sendto(fd_UDP, buffer_UDP, strlen(buffer_UDP), 0, (struct sockaddr*)&addr_UDP, addrlen_UDP);
+    if(n_UDP == -1){
+        fprintf(stderr, "error: %s\n", strerror(errno_UDP));
         exit(1);
     }
 }
 
 
 void quit(int verbose){
-    char *ptr = buffer + 4;
+    char *ptr = buffer_UDP + 4;
     char PLID[MAX_PLID_SIZE + 1];
-    n = sscanf(ptr, "%s\n", PLID);
+    n_UDP = sscanf(ptr, "%s\n", PLID);
     char filename[MAX_FILENAME_SIZE + strlen(FOLDER_GAMES) + 1];
     sprintf(filename, "%sGAME_%s.txt", FOLDER_GAMES, PLID);
 
@@ -352,14 +352,14 @@ void quit(int verbose){
     if(!access(filename, F_OK)){ 
         // File exists
         finishGame(PLID, filename, 'Q');
-        sprintf(buffer, "RQT OK\n");
+        sprintf(buffer_UDP, "RQT OK\n");
     } else{
-        sprintf(buffer, "RQT ERR\n");
+        sprintf(buffer_UDP, "RQT ERR\n");
     }
 
-    n = sendto(fd, buffer, strlen(buffer), 0, (struct sockaddr*)&addr, addrlen);
-    if(n == -1){
-        fprintf(stderr, "error: %s\n", strerror(errno));
+    n_UDP = sendto(fd_UDP, buffer_UDP, strlen(buffer_UDP), 0, (struct sockaddr*)&addr_UDP, addrlen_UDP);
+    if(n_UDP == -1){
+        fprintf(stderr, "error: %s\n", strerror(errno_UDP));
         exit(1);
     }
 }
@@ -375,7 +375,7 @@ void finishGame(char *PLID, char *filename, char state){
     DIR* dir = opendir(buf);
     if(dir){
         closedir(dir);
-    } else if(ENOENT == errno){
+    } else if(ENOENT == errno_UDP){
         mkdir(buf, 0777);
     } else{
         perror("opendir");
@@ -404,8 +404,8 @@ void createScoreFile(char* PLID, char *word, int corrects, int trials){
 void printVerbose(char *command, char *PLID){
     char host[NI_MAXHOST],service[NI_MAXSERV];
 
-    if((errcode=getnameinfo((struct sockaddr *)&addr,addrlen,host,sizeof host,service,sizeof service,0))!=0) 
-        fprintf(stderr,"error: getnameinfo: %s\n",gai_strerror(errcode));
+    if((errcode_UDP=getnameinfo((struct sockaddr *)&addr_UDP,addrlen_UDP,host,sizeof host,service,sizeof service,0))!=0) 
+        fprintf(stderr,"error: getnameinfo: %s\n",gai_strerror(errcode_UDP));
     else
         printf("Sent by:\n\thost: %s\n\tport: %s\n\n", host, service);
     printf("Command: %s\nPLID: %s\n", command, PLID);
