@@ -51,20 +51,20 @@ int main(int argc, char** argv){
             if(trial_number>0)
                 quit(hostname, port, buffer, PLID, &trial_number);
             else{
-                printf("There is no game in progress\n");
+                printf(NO_GAME);
             }
         }
         else if(!strcmp(command, "exit")){
             if(trial_number>0)
                 quit(hostname, port, buffer, PLID, &trial_number);
             else{
-                printf("There is no game in progress\n");
+                printf(NO_GAME);
             }
-            printf("Bye!\n");
+            printf(EXIT);
             break; 
         }
         else
-            printf("Invalid command\n");
+            printf(INVALID_COMMAND);
     }
 }
 
@@ -74,8 +74,8 @@ void  INThandler(int sig){
     if(trial_number>0)
         quit(hostname, port, buffer, PLID, &trial_number);
     else{
-        printf("There is no game in progress\n");
+        printf(NO_GAME);
     }
-    printf("Bye!\n");
+    printf(EXIT);
     exit(0);
 }

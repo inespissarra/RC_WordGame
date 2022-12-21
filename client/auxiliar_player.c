@@ -209,9 +209,13 @@ void start(char* hostname, char* port, char *buffer, char *PLID, char *game, int
         }
         else if(!strcmp(buf2, "NOK"))
             printf(GAME_ALREADY_STARTED);
+        else if(!strcmp(buf2, "ERR"))
+            printf(ERROR);
         else
             printf(FORMAT_ERROR);
     }
+    else if(!strcmp(buf1, "ERR"))
+            printf(ERROR);
     else{
         printf(FORMAT_ERROR);
     }
@@ -307,10 +311,14 @@ void play(char* hostname, char* port, char *buffer, char *PLID, char *game, int 
             }
         } else if(!strcmp(buf, "INV"))
             printf(INVALID_TRIAL);
-        
+        else if(!strcmp(buf, "ERR"))
+            printf(ERROR);
         else
             printf(FORMAT_ERROR);
-    } else 
+        printf("%s", buf);
+    } else if(!strcmp(buf, "ERR"))
+            printf(ERROR);
+    else 
         printf(FORMAT_ERROR);
 }
 
@@ -379,9 +387,13 @@ void guess(char* hostname, char* port, char *buffer, char *PLID, int *trial_numb
                 printf(GAME_OVER);
                 *trial_number = 0;
             }
-        } else
+        } else if(!strcmp(buf, "ERR"))
+            printf(ERROR); 
+        else
             printf(FORMAT_ERROR);
-    } else 
+    } else if(!strcmp(buf, "ERR"))
+        printf(ERROR); 
+    else 
         printf(FORMAT_ERROR);
 
 }
@@ -398,14 +410,17 @@ void scoreboard(char* hostname, char* port, char *buffer, char *PLID){
         if(!strcmp(buffer, "OK")){
             readFile(1, buffer);
         } else if(!strcmp(buffer, "EMPTY")){
-            printf("No game was yet won by any player\n");
-        }
+            printf(NO_SCORES);
+        } else if(!strcmp(buffer, "ERR"))
+            printf(ERROR);
         else {
-            printf("ERROR\n");
+            printf(FORMAT_ERROR);
         }
-    } else {
-        printf("ERROR\n");
-    }
+    } else if(!strcmp(buffer, "ERR"))
+        printf(ERROR);
+    else
+        printf(FORMAT_ERROR);
+
     closeSocket();
 }
 
@@ -421,11 +436,15 @@ void hint(char* hostname, char* port, char *buffer, char *PLID){
         if(!strcmp(buffer, "OK"))
             readFile(0, buffer);
         else if(!strcmp(buffer, "NOK"))
-            printf("No hint file available\n");
+            printf(NO_HINT);
+        else if(!strcmp(buffer, "ERR"))
+            printf(ERROR);
         else
-            printf("ERROR\n");
-    } else
-        printf("ERROR\n");
+            printf(FORMAT_ERROR);
+    } else if(!strcmp(buffer, "ERR"))
+        printf(ERROR);
+    else
+        printf(FORMAT_ERROR);
     closeSocket();
 }
 
@@ -442,10 +461,15 @@ void state(char* hostname, char* port, char *buffer, char *PLID){
             readFile(1, buffer);
         }
         else if(!strcmp(buffer, "NOK")){
-            printf("No games active or finished for you :/\n");
-        }
-    } else {
-        printf("ERROR\n");
+            printf(NO_STATE);
+        } else if(!strcmp(buffer, "ERR"))
+            printf(ERROR);
+        else
+            printf(FORMAT_ERROR);
+    } else if(!strcmp(buffer, "ERR"))
+        printf(ERROR);
+    else {
+        printf(FORMAT_ERROR);
     }
     closeSocket();
 
@@ -457,17 +481,23 @@ void quit(char* hostname, char* port, char *buffer, char *PLID, int *trial_numbe
 
     sendAndReadUDP(buffer, hostname, port);
 
-    char buf[4];
+    char buf[4], n;
     sscanf(buffer, "%s ", buf);
     if(!strcmp(buf, "RQT")){
-        sscanf(buffer, "%*s %s ", buf);
-        if(!strcmp(buf, "OK")){
+        sscanf(buffer, "%*s %s%c", buf, &n);
+        if(n=='\n' && !strcmp(buf, "OK")){
             *trial_number=0;
-            printf("Game ended\n");
+            printf(QUIT);
         }
+        else if(n=='\n' && !strcmp(buf, "NOK"))
+            printf(NO_GAME);
+        else if(!strcmp(buf, "ERR"))
+            printf(ERROR);
         else
-            printf("ERROR\n");
+            printf(FORMAT_ERROR);
         
-    } else
-        printf("ERROR\n");
+    } else if(!strcmp(buf, "ERR"))
+        printf(ERROR); 
+    else
+        printf(FORMAT_ERROR);
 }

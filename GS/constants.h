@@ -15,4 +15,11 @@
 #define FOLDER_SCORES "SCORES/"
 #define FOLDER_DATA "Dados_GS/"
 
+#define INVALID_COMMAND "Invalid command\n"
+#define INVALID_PLID "Invalid PLID\n"
+#define INVALID_LETTER "Invalid letter\n"
+#define INVALID_TRIAL "Invalid trial number\n"
+#define INVALID_WORD "Invalid word. The word cannot contain numbers\n"
+#define FORMAT_ERROR "Format error\n"
+
 #endif

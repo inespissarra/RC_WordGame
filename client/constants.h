@@ -15,11 +15,13 @@
 #define SCOREBOARD 1
 #define STATE 2
 
+#define INVALID_COMMAND "Invalid command\n"
 #define INVALID_PLID "Invalid PLID\n"
 #define INVALID_LETTER "Invalid letter\n"
 #define INVALID_TRIAL "Invalid trial number\n"
 #define INVALID_WORD "Invalid word. The word cannot contain numbers\n"
 #define FORMAT_ERROR "Format error\n"
+#define ERROR "Error\n"
 
 #define NEW_GAME "New game started (max %d errors): %s\n"
 #define GAME_ALREADY_STARTED "Error: Game already started\n"
@@ -35,6 +37,7 @@
 #define NO_STATE "No games active or finished for you :/\n"
 
 #define QUIT "Game over!\n"
+#define EXIT "Bye!\n"
 #define NO_GAME "There is no game in progress\n"
 
 
