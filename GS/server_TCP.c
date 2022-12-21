@@ -77,7 +77,6 @@ void TCP_command(char *port, int verbose){
 }
 
 
-
 void TCP_OpenSocket(char *port){
     fd_TCP = socket(AF_INET, SOCK_STREAM, 0);
     if(fd_TCP == -1){
@@ -109,6 +108,17 @@ void TCP_OpenSocket(char *port){
 }
 
 
+void writeToTCP(char *ptr, int to_write){
+    while((n_TCP = write(newfd_TCP, ptr, to_write))!=0){
+        if(n_TCP == -1){
+            printf("ERROR\n");
+            exit(1);
+        } 
+        ptr += n_TCP;
+        to_write -= n_TCP;
+    }
+}
+
 
 void writeFile(char *filename, char *buffer_TCP){
     char imagename[MAX_FILENAME_SIZE + strlen(FOLDER_DATA) + 1];
@@ -126,16 +136,7 @@ void writeFile(char *filename, char *buffer_TCP){
 
     // send filename and filesize
     sprintf(buffer_TCP, "%s %d ", filename, size);
-    char *ptr = buffer_TCP;
-    int n_left = strlen(buffer_TCP);
-    while((n_TCP= write(newfd_TCP, ptr, n_left))!=0){
-        if(n_TCP== -1){
-            printf("ERROR\n");
-            exit(1);
-        }
-        ptr += n_TCP;
-        n_left -= n_TCP;
-    }
+    writeToTCP(buffer_TCP, strlen(buffer_TCP));
 
     fp = fopen(imagename, "r");
     if(fp == NULL){
@@ -143,19 +144,12 @@ void writeFile(char *filename, char *buffer_TCP){
         exit(1);
     }
 
+    size_t n;
     // send file's content
     while (size > 0){
-        n_left = fread(buffer_TCP, 1, MAX_READ_SIZE, fp);
-        ptr = buffer_TCP;
-        while((n_TCP = write(newfd_TCP, ptr, n_left))!=0){
-            if(n_TCP == -1){
-                printf("ERROR\n");
-                exit(1);
-            }
-            ptr += n_TCP;
-            n_left -= n_TCP;
-            size -=n_TCP;
-        }
+        n = fread(buffer_TCP, 1, MAX_READ_SIZE, fp);
+        writeToTCP(buffer_TCP, n);
+        size -= n;
     }
     buffer_TCP[0] = '\n';
 
@@ -163,6 +157,7 @@ void writeFile(char *filename, char *buffer_TCP){
 
     fclose(fp);
 }
+
 
 void readPLID(char *PLID, int verbose){
     int n_left = MAX_PLID_SIZE;
@@ -203,16 +198,7 @@ void hint(int verbose){
         sscanf(buffer_TCP, "%*s %s", filename);
         sprintf(buffer_TCP, "RHL OK ");
 
-        char *ptr = buffer_TCP;
-        int n_left = strlen(buffer_TCP);
-        while((n_TCP= write(newfd_TCP, ptr, n_left))!=0){
-            if(n_TCP== -1){
-                printf("ERROR\n");
-                exit(1);
-            } 
-            ptr += n_TCP;
-            n_left -= n_TCP;
-        }
+        writeToTCP(buffer_TCP, strlen(buffer_TCP));
 
         writeFile(filename, buffer_TCP);
 
@@ -271,16 +257,7 @@ void scoreboard(){
         sprintf(response, "RSB OK TOPSCORES_%07d.txt %zu %s\n", getppid(), strlen(sb_file), sb_file);
     }
 
-    char *ptr = response;
-    int n_left = strlen(response);
-    while((n_TCP= write(newfd_TCP, ptr, n_left))!=0){
-        if(n_TCP== -1){
-            printf("ERROR\n");
-            exit(1);
-        } 
-        ptr += n_TCP;
-        n_left -= n_TCP;
-    }
+    writeToTCP(response, strlen(response));
 }
 
 
@@ -362,9 +339,9 @@ void createStateFile(char *PLID, char *filename, char file[MAX_FILE_SIZE + 1], i
         if (code == 'W')
             sprintf(buffer_TCP, "     Termination: WIN\n");
         else if (code == 'F')
-            sprintf(buffer_TCP, "     Termination - FAIL\n");
+            sprintf(buffer_TCP, "     Termination: FAIL\n");
         else if (code == 'Q')
-            sprintf(buffer_TCP, "     Termination - QUIT\n");
+            sprintf(buffer_TCP, "     Termination: QUIT\n");
         strcat(transactions, buffer_TCP);
         sprintf(file, "     Last finalized game for player %s\n     Word: %s; Hint file: %s\n     --- Transaction found: %d ---\n", PLID, word, hintfile, n_trials);
         strcat(file, transactions);
@@ -396,15 +373,5 @@ void state(int verbose){
             sprintf(response, "RST NOK\n");
     }
 
-
-    char *ptr = response;
-    int n_left = strlen(response);
-    while((n_TCP= write(newfd_TCP, ptr, n_left))!=0){
-        if(n_TCP== -1){
-            printf("ERROR\n");
-            exit(1);
-        } 
-        ptr += n_TCP;
-        n_left -= n_TCP;
-    }
+    writeToTCP(response, strlen(response));
 }

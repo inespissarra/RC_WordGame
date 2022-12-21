@@ -20,9 +20,10 @@
 #define INVALID_PLID "Invalid PLID\n"
 #define INVALID_LETTER "Invalid letter\n"
 #define INVALID_TRIAL "Invalid trial number\n"
-#define INVALID_WORD "Invalid word. The word cannot contain numbers\n"
+#define INVALID_WORD "Invalid word. The word cannot contain numbers and must have length between 3 and 30.\n"
 #define FORMAT_ERROR "Format error\n"
 #define ERROR "Error\n"
+#define UNEXPECTED_COMMAND "Unexpected command :/\n"
 
 #define NEW_GAME "New game started (max %d errors): %s\n"
 #define GAME_ALREADY_STARTED "Error: Game already started\n"

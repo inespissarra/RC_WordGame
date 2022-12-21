@@ -316,7 +316,7 @@ void play(char* hostname, char* port, char *buffer, char *PLID, char *game, int 
         else
             printf(FORMAT_ERROR);
     } else if(!strcmp(buf, "ERR"))
-            printf(ERROR);
+            printf(UNEXPECTED_COMMAND);
     else 
         printf(FORMAT_ERROR);
 }
@@ -390,7 +390,7 @@ void guess(char* hostname, char* port, char *buffer, char *PLID, int *trial_numb
         else
             printf(FORMAT_ERROR);
     } else if(!strcmp(buf, "ERR"))
-        printf(ERROR); 
+        printf(UNEXPECTED_COMMAND); 
     else 
         printf(FORMAT_ERROR);
 

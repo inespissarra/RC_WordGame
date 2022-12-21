@@ -31,6 +31,8 @@ int main(int argc, char** argv){
 
     signal(SIGINT, INThandler);
 
+    printf("Welcome to Word Game :D\n");
+
     char command[10];
     while(1){
         // Read command

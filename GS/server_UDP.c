@@ -315,7 +315,13 @@ void play(int verbose){
 
         char filename[MAX_FILENAME_SIZE + strlen(FOLDER_GAMES) + 1];
         sprintf(filename, "%sGAME_%s.txt", FOLDER_GAMES, PLID);
-        move(filename, letter, 'T', PLID, trial_number);
+        if (access(filename, F_OK))
+            sprintf(buffer_UDP, "ERR\n");
+        else{
+            sprintf(filename, "%sGAME_%s.txt", FOLDER_GAMES, PLID);
+            move(filename, letter, 'T', PLID, trial_number);
+        }
+        
     } else{
         if(verbose)
             printVerbose(NULL, NULL, NULL, -1);
@@ -345,7 +351,14 @@ void guess(int verbose){
 
         char filename[MAX_FILENAME_SIZE + strlen(FOLDER_GAMES) + 1];
         sprintf(filename, "%sGAME_%s.txt", FOLDER_GAMES, PLID);
-        move(filename, guess, 'G', PLID, trial_number);
+        if (access(filename, F_OK)){
+            printf("here\n");
+            sprintf(buffer_UDP, "ERR\n");}
+
+        else{
+            sprintf(filename, "%sGAME_%s.txt", FOLDER_GAMES, PLID);
+            move(filename, guess, 'G', PLID, trial_number);
+        }
     } else {
         if(verbose)
             printVerbose(NULL, NULL, NULL, -1);
