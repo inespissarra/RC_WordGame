@@ -54,20 +54,18 @@ void TCP_command(char *port, int verbose){
             }
 
             if(!strcmp(buffer_TCP, "GSB")){
-                sleep(10);
                 scoreboard();
-                printf("----------------------\n\n");
             } else if(!strcmp(buffer_TCP, "GHL")){
                 hint(verbose);
-                printf("----------------------\n\n");
             } else if(!strcmp(buffer_TCP, "STA")){
                 state(verbose);
-                printf("----------------------\n\n");
             } else{
                 // Invalid command
                 printf("ERROR\n");
                 exit(1);
             }
+            if(verbose)
+                printf("----------------------\n\n");
             close(newfd_TCP);
             exit(0);
         } else if(c1_pid < 0){

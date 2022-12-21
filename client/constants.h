@@ -30,5 +30,12 @@
 #define BAD_GUESS "No, \"%s\" is not the word (max %d errors)\n"
 #define GAME_OVER "You have reached the maximum error limit.\nGame over!\n"
 
+#define NO_SCORES "No game was yet won by any player\n"
+#define NO_HINT "No hint available\n"
+#define NO_STATE "No games active or finished for you :/\n"
+
+#define QUIT "Game over!\n"
+#define NO_GAME "There is no game in progress\n"
+
 
 #endif
