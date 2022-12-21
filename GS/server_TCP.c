@@ -1,6 +1,6 @@
 #include "server_TCP.h"
 
-int fd_TCP, newfd_TCP, errno_TCP, errcode_TCP;
+int fd_TCP, newfd_TCP, errno, errcode_TCP;
 ssize_t n_TCP;
 socklen_t addrlen_TCP;
 struct addrinfo hints_TCP, *res_TCP;
@@ -102,7 +102,7 @@ void TCP_OpenSocket(char *port){
         exit(1);
     }
 
-    if(listen(fd_TCP, 5) == -1){ // 5 is the maximum number of pending connections, can be changed (?)
+    if(listen(fd_TCP, 5) == -1){
         printf("ERROR\n");
         exit(1);
     }
@@ -147,8 +147,8 @@ void writeFile(char *filename, char *buffer_TCP){
     while (size > 0){
         n_left = fread(buffer_TCP, 1, MAX_READ_SIZE, fp);
         ptr = buffer_TCP;
-        while((n_TCP= write(newfd_TCP, ptr, n_left))!=0){
-            if(n_TCP== -1){
+        while((n_TCP = write(newfd_TCP, ptr, n_left))!=0){
+            if(n_TCP == -1){
                 printf("ERROR\n");
                 exit(1);
             }
@@ -167,9 +167,9 @@ void writeFile(char *filename, char *buffer_TCP){
 void readPLID(char *PLID, int verbose){
     int n_left = MAX_PLID_SIZE;
     char *ptr = PLID;
-    while(n_TCP>0){
-        n_TCP= read(newfd_TCP, ptr, n_left);
-        if(n_TCP== -1){
+    while(n_TCP > 0){
+        n_TCP = read(newfd_TCP, ptr, n_left);
+        if(n_TCP == -1){
             printf("ERROR\n");
             exit(1);
         }
@@ -177,9 +177,9 @@ void readPLID(char *PLID, int verbose){
         n_left -= n_TCP;
     }
     *ptr = '\0';
-    n_TCP=0;
-    while((n_TCP= read(newfd_TCP, buffer_TCP, 1))==0){ 
-        if(n_TCP== -1){
+    n_TCP = 0;
+    while((n_TCP = read(newfd_TCP, buffer_TCP, 1))==0){ 
+        if(n_TCP == -1){
             printf("ERROR\n");
             exit(1);
         }
@@ -191,6 +191,8 @@ void readPLID(char *PLID, int verbose){
 void hint(int verbose){
     char PLID[MAX_PLID_SIZE + 1];
     readPLID(PLID, verbose);
+
+    if()
     
     FILE *fp;
     char filename[MAX_FILENAME_SIZE + strlen(FOLDER_GAMES) + 1];

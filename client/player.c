@@ -37,8 +37,9 @@ int main(int argc, char** argv){
         scanf("%s", command);
         if(!strcmp(command, "start") || !strcmp(command, "sg"))
             start(hostname, port, buffer, PLID, game, &trial_number, &erros_restantes);
-        else if(!strcmp(command, "play") || !strcmp(command, "pl"))
+        else if(!strcmp(command, "play") || !strcmp(command, "pl")){
             play(hostname, port, buffer, PLID, game, &trial_number, &erros_restantes);
+        }
         else if(!strcmp(command, "guess") || !strcmp(command, "gw"))
             guess(hostname, port, buffer, PLID, &trial_number, &erros_restantes);
         else if(!strcmp(command, "scoreboard") || !strcmp(command, "sb"))

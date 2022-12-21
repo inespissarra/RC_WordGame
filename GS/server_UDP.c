@@ -1,6 +1,6 @@
 #include "server_UDP.h"
 
-int fd_UDP, errno_UDP, errcode_UDP;
+int fd_UDP, errno, errcode_UDP;
 ssize_t n_UDP;
 socklen_t addrlen_UDP;
 struct addrinfo hints_UDP, *res_UDP;
@@ -120,7 +120,7 @@ void start(char *word_file, int verbose){
             sprintf(buffer_UDP, "RSG NOK\n");
             n_UDP = sendto(fd_UDP, buffer_UDP, strlen(buffer_UDP), 0, (struct sockaddr*)&addr_UDP, addrlen_UDP);
             if(n_UDP == -1){
-                fprintf(stderr, "error: %s\n", strerror(errno_UDP));
+                fprintf(stderr, "error: %s\n", strerror(errno));
                 exit(1);
             }
             return;
@@ -141,7 +141,7 @@ void start(char *word_file, int verbose){
     
     n_UDP = sendto(fd_UDP, buffer_UDP, strlen(buffer_UDP), 0, (struct sockaddr*)&addr_UDP, addrlen_UDP);
     if(n_UDP == -1){
-        fprintf(stderr, "error: %s\n", strerror(errno_UDP));
+        fprintf(stderr, "error: %s\n", strerror(errno));
         exit(1);
     }
 }
@@ -300,7 +300,7 @@ void play(int verbose){
 
     n_UDP = sendto(fd_UDP, buffer_UDP, strlen(buffer_UDP), 0, (struct sockaddr*)&addr_UDP, addrlen_UDP);
     if(n_UDP == -1){
-        fprintf(stderr, "error: %s\n", strerror(errno_UDP));
+        fprintf(stderr, "error: %s\n", strerror(errno));
         exit(1);
     }
 }
@@ -330,7 +330,7 @@ void guess(int verbose){
 
     n_UDP = sendto(fd_UDP, buffer_UDP, strlen(buffer_UDP), 0, (struct sockaddr*)&addr_UDP, addrlen_UDP);
     if(n_UDP == -1){
-        fprintf(stderr, "error: %s\n", strerror(errno_UDP));
+        fprintf(stderr, "error: %s\n", strerror(errno));
         exit(1);
     }
 }
@@ -359,7 +359,7 @@ void quit(int verbose){
 
     n_UDP = sendto(fd_UDP, buffer_UDP, strlen(buffer_UDP), 0, (struct sockaddr*)&addr_UDP, addrlen_UDP);
     if(n_UDP == -1){
-        fprintf(stderr, "error: %s\n", strerror(errno_UDP));
+        fprintf(stderr, "error: %s\n", strerror(errno));
         exit(1);
     }
 }
@@ -375,7 +375,7 @@ void finishGame(char *PLID, char *filename, char state){
     DIR* dir = opendir(buf);
     if(dir){
         closedir(dir);
-    } else if(ENOENT == errno_UDP){
+    } else if(ENOENT == errno){
         mkdir(buf, 0777);
     } else{
         perror("opendir");

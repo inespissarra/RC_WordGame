@@ -40,5 +40,9 @@
 #define EXIT "Bye!\n"
 #define NO_GAME "There is no game in progress\n"
 
+#define RECEIVED_HINT "Hint file received: %s Size: %zu\n"
+#define RECEIVED_SCOREBOARD "Scoreboard file received: %s Size: %zu\n"
+#define RECEIVED_STATE "State file received: %s Size: %zu\n"
+
 
 #endif

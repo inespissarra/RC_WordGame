@@ -22,4 +22,6 @@
 #define INVALID_WORD "Invalid word. The word cannot contain numbers\n"
 #define FORMAT_ERROR "Format error\n"
 
+#define BYE_SERVER "Server is shutting down\n"
+
 #endif

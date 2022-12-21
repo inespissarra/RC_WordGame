@@ -149,7 +149,7 @@ void readFile(int command, char *buffer){
             printf("%s", buffer);
     }
     fclose(fp);
-    while((n = read(fd, buffer, 1))==0){ // read \n
+    while((n = read(fd, buffer, 1))==0){
         if(n == -1){
             printf("ERROR\n");
             exit(1);
@@ -157,11 +157,11 @@ void readFile(int command, char *buffer){
     }
 
     if(command == HINT)
-        printf("Hint file received: %s %zu\n", filename, filesize);
+        printf(RECEIVED_HINT, filename, filesize);
     else if(command == STATE)
-        printf("State file received: %s %zu\n", filename, filesize);
+        printf(RECEIVED_STATE, filename, filesize);
     else if(command == SCOREBOARD)
-        printf("Scoreboard file received: %s %zu\n", filename, filesize);
+        printf(RECEIVED_SCOREBOARD, filename, filesize);
 }
 
 void readUntilSpace(char *ptr){
@@ -315,7 +315,6 @@ void play(char* hostname, char* port, char *buffer, char *PLID, char *game, int 
             printf(ERROR);
         else
             printf(FORMAT_ERROR);
-        printf("%s", buf);
     } else if(!strcmp(buf, "ERR"))
             printf(ERROR);
     else 
@@ -335,7 +334,7 @@ int validGuess(char* word){
 
 void guess(char* hostname, char* port, char *buffer, char *PLID, int *trial_number, int *errors){
     char word[MAX_WORD_LENGTH + 1];
-    if(!scanf(" %s", word) || !validGuess(word)){
+    if(!scanf(" %s", word) || !validGuess(word) || strlen(word) < 3 || strlen(word) > 30){
         printf(INVALID_WORD);
         return;
     }

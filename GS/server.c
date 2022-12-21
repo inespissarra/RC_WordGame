@@ -49,6 +49,6 @@ void INThandler(int sig){
     signal(sig, SIG_IGN);
     while(kill(0, SIGKILL)!=0);
     kill(0, SIGKILL);
-    printf("Server is shutting down\n");
+    printf(BYE_SERVER);
     exit(0);
 }
