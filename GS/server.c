@@ -1,5 +1,8 @@
+#include  <signal.h>
 #include "server_UDP.h"
 #include "server_TCP.h"
+
+void INThandler(int sig);
 
 int main(int argc, char** argv){
 
@@ -19,6 +22,8 @@ int main(int argc, char** argv){
             i+=1;
         }
     }
+
+    signal(SIGINT, INThandler);
     
     pid_t c1_pid, c2_pid, wpid;
     int status;
@@ -38,4 +43,12 @@ int main(int argc, char** argv){
         perror("fork");
         exit(1);
     }
+}
+
+void INThandler(int sig){
+    signal(sig, SIG_IGN);
+    while(kill(0, SIGKILL)!=0);
+    kill(0, SIGKILL);
+    printf("Server is shutting down\n");
+    exit(0);
 }

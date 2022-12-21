@@ -25,6 +25,12 @@ void TCP_command(char *port, int verbose){
         if(c1_pid == 0){
             // child process
             char *ptr = buffer;
+
+            struct timeval timeout;
+            timeout.tv_sec = TIMEOUT;
+            timeout.tv_usec = 0;
+            setsockopt(newfd, SOL_SOCKET, SO_SNDTIMEO, (const char *) &timeout, sizeof(timeout));
+            setsockopt(newfd, SOL_SOCKET, SO_RCVTIMEO, (const char *) &timeout, sizeof(timeout));
     
             do {
                 n = read(newfd, ptr, 1);
@@ -48,6 +54,7 @@ void TCP_command(char *port, int verbose){
             }
 
             if(!strcmp(buffer, "GSB")){
+                sleep(10);
                 scoreboard();
                 printf("----------------------\n\n");
             } else if(!strcmp(buffer, "GHL")){
@@ -102,10 +109,6 @@ void TCP_OpenSocket(char *port){
         printf("ERROR\n");
         exit(1);
     }
-
-    int timeout = TIMEOUT;
-    setsockopt(fd, SOL_SOCKET, SO_SNDTIMEO, (const char *) &timeout, sizeof(timeout));
-    setsockopt(fd, SOL_SOCKET, SO_RCVTIMEO, (const char *) &timeout, sizeof(timeout));
 }
 
 

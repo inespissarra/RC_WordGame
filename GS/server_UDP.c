@@ -22,9 +22,6 @@ void UDP_command(char *word_file, char *port, int verbose){
             exit(1);
         }
         buffer[n] = '\0';
-        
-        if(verbose)
-            printf("Received: %s", buffer);
 
         sscanf(buffer, "%s", command);
         if(!strcmp(command, "SNG")){
@@ -71,7 +68,9 @@ void UDP_connect(char *port){
         exit(1);
     }
 
-    int timeout = TIMEOUT;
+    struct timeval timeout;
+    timeout.tv_sec = TIMEOUT;
+    timeout.tv_usec = 0;
     setsockopt(fd, SOL_SOCKET, SO_SNDTIMEO, (const char *) &timeout, sizeof(timeout));
     setsockopt(fd, SOL_SOCKET, SO_RCVTIMEO, (const char *) &timeout, sizeof(timeout));
 }
@@ -103,6 +102,12 @@ void start(char *word_file, int verbose){
     char filename[MAX_FILENAME_SIZE + strlen(FOLDER_GAMES) + 1];
     sprintf(filename, "%sGAME_%s.txt", FOLDER_GAMES, PLID);
 
+    if(verbose){
+        printf("----------------------\n");
+        printVerbose("SNG", PLID);
+        printf("----------------------\n\n");
+    }
+
     if(!access(filename, F_OK)){ 
         // File exists
         fp = fopen(filename, "r");
@@ -118,8 +123,6 @@ void start(char *word_file, int verbose){
                 fprintf(stderr, "error: %s\n", strerror(errno));
                 exit(1);
             }
-            if (verbose)
-                printf("Sent: %s\n", buffer);
             return;
         }
         fclose(fp);
@@ -141,8 +144,6 @@ void start(char *word_file, int verbose){
         fprintf(stderr, "error: %s\n", strerror(errno));
         exit(1);
     }
-    if (verbose)
-        printf("Sent: %s\n", buffer);
 }
 
 
@@ -281,6 +282,14 @@ void play(int verbose){
 
     n = sscanf(buffer + 4, "%s %s %d\n", PLID, letter, &trial_number);
 
+    if(verbose){
+        printf("----------------------\n");
+        printVerbose("PLG", PLID);
+        printf("Letter: %s\n", letter);
+        printf("Trial number: %d\n", trial_number);
+        printf("----------------------\n\n");
+    }
+
     if(n==3){
         // Correct format
         char filename[MAX_FILENAME_SIZE + strlen(FOLDER_GAMES) + 1];
@@ -294,8 +303,6 @@ void play(int verbose){
         fprintf(stderr, "error: %s\n", strerror(errno));
         exit(1);
     }
-    if (verbose)
-        printf("Sent: %s\n", buffer);
 }
 
 
@@ -304,6 +311,14 @@ void guess(int verbose){
     char PLID[MAX_PLID_SIZE + 1], guess[MAX_WORD_LENGTH + 1];
 
     n = sscanf(buffer + 4, "%s %s %d\n", PLID, guess, &trial_number);
+
+    if(verbose){
+        printf("----------------------\n");
+        printVerbose("PWG", PLID);
+        printf("Guess: %s\n", guess);
+        printf("Trial number: %d\n", trial_number);
+        printf("----------------------\n\n");
+    }
 
     if(n==3){ 
         // Correct format
@@ -318,8 +333,6 @@ void guess(int verbose){
         fprintf(stderr, "error: %s\n", strerror(errno));
         exit(1);
     }
-    if (verbose)
-        printf("Sent: %s\n", buffer);
 }
 
 
@@ -329,6 +342,13 @@ void quit(int verbose){
     n = sscanf(ptr, "%s\n", PLID);
     char filename[MAX_FILENAME_SIZE + strlen(FOLDER_GAMES) + 1];
     sprintf(filename, "%sGAME_%s.txt", FOLDER_GAMES, PLID);
+
+    if(verbose){
+        printf("----------------------\n");
+        printVerbose("QUT", PLID);
+        printf("----------------------\n\n");
+    }
+
     if(!access(filename, F_OK)){ 
         // File exists
         finishGame(PLID, filename, 'Q');
@@ -342,8 +362,6 @@ void quit(int verbose){
         fprintf(stderr, "error: %s\n", strerror(errno));
         exit(1);
     }
-    if(verbose)
-        printf("Sent: %s\n", buffer);
 }
 
 
@@ -381,4 +399,14 @@ void createScoreFile(char* PLID, char *word, int corrects, int trials){
     FILE* fp = fopen(filename, "w");
     fprintf(fp, "%03d %s %s %d %d\n", score, PLID, word, corrects, trials);
     fclose(fp);
+}
+
+void printVerbose(char *command, char *PLID){
+    char host[NI_MAXHOST],service[NI_MAXSERV];
+
+    if((errcode=getnameinfo((struct sockaddr *)&addr,addrlen,host,sizeof host,service,sizeof service,0))!=0) 
+        fprintf(stderr,"error: getnameinfo: %s\n",gai_strerror(errcode));
+    else
+        printf("Sent by:\n\thost: %s\n\tport: %s\n\n", host, service);
+    printf("Command: %s\nPLID: %s\n", command, PLID);
 }

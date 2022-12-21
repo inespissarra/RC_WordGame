@@ -1,7 +1,7 @@
 #include "constants.h"
 #include "auxiliar_player.h"
 
-int fd, errno, errcode;
+int fd, errno, errcode, afd = 0;
 ssize_t n;
 socklen_t addrlen;
 struct addrinfo hints, *res;
@@ -9,7 +9,9 @@ struct sockaddr_in addr;
 
 
 void createUDPsocket(char* hostname, char* port){
-    int timeout = TIMEOUT;
+    struct timeval timeout;
+    timeout.tv_sec = TIMEOUT;
+    timeout.tv_usec = 0;
     
     fd = socket(AF_INET, SOCK_DGRAM, 0);
     if(fd == -1){
@@ -26,12 +28,14 @@ void createUDPsocket(char* hostname, char* port){
         exit(1);
     }
 
-    setsockopt(fd, SOL_SOCKET, SO_SNDTIMEO, (const char *) &timeout, sizeof(timeout));
-    setsockopt(fd, SOL_SOCKET, SO_RCVTIMEO, (const char *) &timeout, sizeof(timeout));
+    setsockopt(fd, SOL_SOCKET, SO_SNDTIMEO, &timeout, sizeof(timeout));
+    setsockopt(fd, SOL_SOCKET, SO_RCVTIMEO, &timeout, sizeof(timeout));
 }
 
 void createTCPsocket(char* hostname, char* port){
-    int timeout = TIMEOUT;
+    struct timeval timeout;
+    timeout.tv_sec = TIMEOUT;
+    timeout.tv_usec = 0;
     
     fd = socket(AF_INET, SOCK_STREAM, 0);
     if(fd == -1){
@@ -48,8 +52,8 @@ void createTCPsocket(char* hostname, char* port){
         exit(1);
     }
     
-    setsockopt(fd, SOL_SOCKET, SO_SNDTIMEO, (const char *) &timeout, sizeof(timeout));
-    setsockopt(fd, SOL_SOCKET, SO_RCVTIMEO, (const char *) &timeout, sizeof(timeout));
+    setsockopt(fd, SOL_SOCKET, SO_SNDTIMEO, &timeout, sizeof(timeout));
+    setsockopt(fd, SOL_SOCKET, SO_RCVTIMEO, &timeout, sizeof(timeout));
 }
 
 void closeSocket(){
@@ -65,6 +69,8 @@ void sendAndReadUDP(char *buffer, char *hostname, char *port){
         fprintf(stderr, "error: %s\n", strerror(errno));
         exit(1);
     }
+
+
     addrlen = sizeof(addr);
     n = recvfrom(fd, buffer, MAX_READ_SIZE, 0, (struct sockaddr*)&addr, &addrlen);
     if(n == -1){
@@ -116,7 +122,7 @@ ssize_t readFromTCPsocket(char *buffer, ssize_t nleft){
     return total_read;
 }
 
-void readFile(int print, char *buffer){
+void readFile(int command, char *buffer){
     char filename[MAX_FILENAME_SIZE + 1], filesize_str[MAX_FSIZE_SIZE + 1];
 
     readUntilSpace(filename);
@@ -139,7 +145,7 @@ void readFile(int print, char *buffer){
             n = readFromTCPsocket(buffer, nleft);
         nleft -= n;
         fwrite(buffer, 1, n, fp);
-        if (print)
+        if (command == STATE || command == SCOREBOARD)
             printf("%s", buffer);
     }
     fclose(fp);
@@ -150,8 +156,12 @@ void readFile(int print, char *buffer){
         }
     }
 
-    if(!print)
+    if(command == HINT)
         printf("Hint file received: %s %zu\n", filename, filesize);
+    else if(command == STATE)
+        printf("State file received: %s %zu\n", filename, filesize);
+    else if(command == SCOREBOARD)
+        printf("Scoreboard file received: %s %zu\n", filename, filesize);
 }
 
 void readUntilSpace(char *ptr){
@@ -166,162 +176,213 @@ void readUntilSpace(char *ptr){
     *(ptr-1) = '\0';
 }
 
+int isNumeric(char *str){
+    while(*str){
+        if(!isdigit(*str))
+            return 0;
+        str++;
+    }
+    return 1;
+}
 
-void start(char* hostname, char* port, char *buffer, char *PLID, char *game, int *trial_number){
-    scanf("%s", PLID);
+
+void start(char* hostname, char* port, char *buffer, char *PLID, char *game, int *trial_number, int *errors){
+    if(!scanf(" %s", PLID) || strlen(PLID) != MAX_PLID_SIZE || !isNumeric(PLID)){
+        printf(INVALID_PLID);
+        return;
+    }
+
     sprintf(buffer, "SNG %s\n", PLID);
 
     sendAndReadUDP(buffer, hostname, port);
 
-    char buf1[4], buf2[4];
-    int n_let, errors;
-    sscanf(buffer, "%s %s %d %d\n", buf1, buf2, &n_let, &errors);
-    if(!strcmp(buf1, "RSG")){
+    char buf1[4], buf2[4], n;
+    int n_let, max_errors, i;
+    i = sscanf(buffer, "%s %s %d %d%c", buf1, buf2, &n_let, &max_errors, &n);
+    *errors = max_errors;
+    if(i==5 && n=='\n' && !strcmp(buf1, "RSG")){
         if(!strcmp(buf2, "OK")){
             memset(game, '_', n_let);
             game[n_let] = '\0';
-            printf("New game started (max %d errors): %s\n", errors, game);
+            printf(NEW_GAME, *errors, game);
             *trial_number = 1;
         }
         else if(!strcmp(buf2, "NOK"))
-            printf("Error: game already started\n");
+            printf(GAME_ALREADY_STARTED);
         else
-            printf("ERROR\n");
+            printf(FORMAT_ERROR);
     }
     else{
-        printf("ERROR\n");
+        printf(FORMAT_ERROR);
     }
 }
 
 
-void play(char* hostname, char* port, char *buffer, char *PLID, char *game, int *trial_number){
+void play(char* hostname, char* port, char *buffer, char *PLID, char *game, int *trial_number, int *errors){
     char letter;
-    scanf(" %c", &letter);
+    if(!scanf(" %c", &letter) || !isalpha(letter)){
+        printf(INVALID_LETTER);
+        return;
+    }
+
     sprintf(buffer, "PLG %s %c %d\n", PLID, letter, *trial_number);
 
     sendAndReadUDP(buffer, hostname, port);
 
-    char buf[4], *ptr = buffer;
-    int trial;
-    sscanf(buffer, "%s ", buf);
-    if(!strcmp(buf, "RLG")){
+    char buf[4], *ptr = buffer, n;
+    int trial, i;
+    i = sscanf(buffer, "%s ", buf);
+    if(i==1 && !strcmp(buf, "RLG")){
         ptr += 4;
         sscanf(ptr, "%s ", buf);
         if(!strcmp(buf, "OK")){
             int n_let;
             char pos[3];
             ptr += 3;
-            sscanf(ptr, "%d %d", &trial, &n_let);
-            if (trial != *trial_number)
-                printf("ERROR\n");
+            i = sscanf(ptr, "%d %d ", &trial, &n_let);
+            if(i!=2)
+                printf(FORMAT_ERROR);
+            else if (trial != *trial_number)
+                printf(INVALID_TRIAL);
             else {
                 *trial_number = *trial_number + 1;
                 ptr += 4;
-                for(int i = 0; i<n_let; i++){
+                for(int j = 0; j<n_let; j++){
                     sscanf(ptr, "%s ", pos);
                     game[atoi(pos) - 1] = letter;
                     ptr += strlen(pos) + 1;
                 }
-                printf("Yes, \"%c\" is part of the word: %s\n", letter, game);
+                printf(GOOD_PLAY, letter, *errors, game);
             }
-
         } else if(!strcmp(buf, "NOK")){
             ptr += 4;
-            sscanf(ptr, "%d", &trial);
-            if (trial != *trial_number)
-                printf("ERROR\n");
+            i = sscanf(ptr, "%d%c", &trial, &n);
+            if(i!=2 || n!='\n')
+                printf(FORMAT_ERROR);
+            else if (trial != *trial_number)
+                printf(INVALID_TRIAL);
             else{
-                printf("No, \"%c\" is not part of the word: %s\n", letter, game);
+                *errors = *errors - 1;
+                printf(BAD_PLAY, letter, *errors, game);
                 *trial_number = *trial_number + 1;
             }
 
         } else if(!strcmp(buf, "WIN")){
             ptr += 4;
-            sscanf(ptr, "%d", &trial);
-            if(trial != *trial_number)
-                printf("ERROR\n");
+            i = sscanf(ptr, "%d%c", &trial, &n);
+            if(i!=2 || n!='\n')
+                printf(FORMAT_ERROR);
+            else if (trial != *trial_number)
+                printf(INVALID_TRIAL);
             else{
                 for(int i=0; i < strlen(game); i++){
                     if(game[i] == '_')
                         game[i] = letter;
                 }
-                printf("WELL DONE! You guessed: %s\n", game);
+                printf(GOOD_GUESS, game);
                 *trial_number = 0;
             }
 
         } else if(!strcmp(buf, "DUP")){
             ptr += 4;
-            sscanf(ptr, "%d", &trial);
-            if (trial != ((*trial_number)))
-                printf("ERROR\n");
+            i = sscanf(ptr, "%d%c", &trial, &n);
+            if(i!=2 || n!='\n')
+                printf(FORMAT_ERROR);
+            else if (trial != ((*trial_number)))
+                printf(INVALID_TRIAL);
             else
-                printf("The letter has been inserted before\n");
+                printf(DUP_PLAY);
         } else if(!strcmp(buf, "OVR")){
             ptr += 4;
-            sscanf(ptr, "%d", &trial);
-            if (trial != *trial_number)
-                printf("TRIAL NUMBER ERROR\n");
+            i = sscanf(ptr, "%d%c", &trial, &n);
+            if(i!=2 || n!='\n')
+                printf(FORMAT_ERROR);
+            else if (trial != *trial_number)
+                printf(INVALID_TRIAL);
             else{
-                printf("No, \"%c\" is not part of the word: %s\nYou have reached the maximum error limit GG\n", letter, game);
+                *errors = *errors - 1;
+                printf(BAD_PLAY, letter, *errors, game);
+                printf(GAME_OVER);
                 *trial_number = 0;
             }
-        } else if(!strcmp(buf, "INV")){
-            printf("Trial number is not valid\n");
-        }
+        } else if(!strcmp(buf, "INV"))
+            printf(INVALID_TRIAL);
         
         else
-            printf("ERROR\n");
+            printf(FORMAT_ERROR);
     } else 
-        printf("ERROR\n");
+        printf(FORMAT_ERROR);
+}
+
+int validGuess(char* word){
+    for(int i = 0; i < strlen(word); i++){
+        if(!isalpha(word[i])){
+            printf(INVALID_WORD);
+            return 0;
+        }
+    }
+    return 1;
 }
 
 
-void guess(char* hostname, char* port, char *buffer, char *PLID, int *trial_number){
+void guess(char* hostname, char* port, char *buffer, char *PLID, int *trial_number, int *errors){
     char word[MAX_WORD_LENGTH + 1];
-    scanf(" %s", word);
+    if(!scanf(" %s", word) || !validGuess(word)){
+        printf(INVALID_WORD);
+        return;
+    }
     sprintf(buffer, "PWG %s %s %d\n", PLID, word, *trial_number);
 
     sendAndReadUDP(buffer, hostname, port);
 
-    char buf[4], *ptr = buffer;
-    int trial;
-    sscanf(buffer, "%s ", buf);
+    char buf[4], *ptr = buffer, n;
+    int trial, i;
+    i = sscanf(buffer, "%s ", buf);
 
-    if(!strcmp(buf, "RWG")){
+    if(i==1 && !strcmp(buf, "RWG")){
         ptr += 4;
-        sscanf(ptr, "%s ", buf);
-        if(!strcmp(buf, "WIN")){
+        i = sscanf(ptr, "%s ", buf);
+        if(i==1 && !strcmp(buf, "WIN")){
             ptr += 4;
-            sscanf(ptr, "%d", &trial);
-            if(trial != *trial_number)
-                printf("ERROR\n");
+            i = sscanf(ptr, "%d%c", &trial, &n);
+            if(i!=2 || n!='\n')
+                printf(FORMAT_ERROR);
+            else if(trial != *trial_number)
+                printf(INVALID_TRIAL);
             else{
-                printf("WELL DONE! You guessed: %s\n", word);
+                printf(GOOD_GUESS, word);
                 *trial_number = 0;
             }
         } else if(!strcmp(buf, "NOK")){
             ptr += 4;
-            sscanf(ptr, "%d", &trial);
-            if (trial != *trial_number)
-                printf("ERROR\n");
+            i = sscanf(ptr, "%d%c", &trial, &n);
+            if(i!=2 || n!='\n')
+                printf(FORMAT_ERROR);
+            else if (trial != *trial_number)
+                printf(INVALID_TRIAL);
             else{
-                printf("No, this word is not the correct answer :/\n");
+                *errors = *errors - 1;
+                printf(BAD_GUESS, word, *errors);
                 *trial_number = *trial_number + 1;
             }
 
         } else if(!strcmp(buf, "OVR")){
             ptr += 4;
-            sscanf(ptr, "%d", &trial);
-            if (trial != *trial_number)
-                printf("ERROR\n");
+            i = sscanf(ptr, "%d%c", &trial, &n);
+            if(i!=2 || n!='\n')
+                printf(FORMAT_ERROR);
+            else if (trial != *trial_number)
+                printf(INVALID_TRIAL);
             else{
-                printf("No, %s is not the correct answer :/\nYou have reached the maximum error limit GG\n", word);
+                *errors = *errors - 1;
+                printf(BAD_GUESS, word, *errors);
+                printf(GAME_OVER);
                 *trial_number = 0;
             }
         } else
-            printf("ERROR\n");
+            printf(FORMAT_ERROR);
     } else 
-        printf("ERROR\n");
+        printf(FORMAT_ERROR);
 
 }
 
