@@ -10,6 +10,14 @@ char buffer_TCP[MAX_READ_SIZE + 1];
 
 void TCP_command(char *port, int verbose){
 
+    struct sigaction act;
+    memset(&act, 0, sizeof act);
+    act.sa_handler = SIG_IGN;
+    if(sigaction(SIGPIPE, &act, NULL)==-1){
+        perror("sigaction");
+        exit(1);
+    }
+
     TCP_OpenSocket(port);
     while(1){
         
