@@ -32,6 +32,7 @@
 #define DUP_PLAY "The letter has been inserted before\n"
 #define GOOD_GUESS "WELL DONE! You guessed: %s\n"
 #define BAD_GUESS "No, \"%s\" is not the word (max %d errors)\n"
+#define DUP_GUESS "The guess has been inserted before\n"
 #define GAME_OVER "You have reached the maximum error limit.\nGame over!\n"
 
 #define NO_SCORES "No game was yet won by any player\n"
