@@ -243,9 +243,9 @@ void play(char* hostname, char* port, char *buffer, char *PLID, char *game, int 
         printf(INVALID_LETTER);
         return;
     }
-
+    letter = tolower(letter);
     sprintf(buffer, "PLG %s %c %d\n", PLID, letter, *trial_number);
-
+    
     if(!sendAndReadUDP(buffer, hostname, port))
         return;
 
@@ -346,6 +346,12 @@ int validGuess(char* word){
     return 1;
 }
 
+void toLowerCase(char str[]){
+    for(int i=0; i<strlen(str); i++){
+        str[i] = tolower(str[i]);
+    }
+}
+
 
 void guess(char* hostname, char* port, char *buffer, char *PLID, int *trial_number, int *errors){
     char word[MAX_WORD_LENGTH + 1];
@@ -353,6 +359,7 @@ void guess(char* hostname, char* port, char *buffer, char *PLID, int *trial_numb
         printf(INVALID_WORD);
         return;
     }
+    toLowerCase(word);
     sprintf(buffer, "PWG %s %s %d\n", PLID, word, *trial_number);
 
     if(!sendAndReadUDP(buffer, hostname, port))
@@ -468,7 +475,7 @@ void hint(char* hostname, char* port, char *buffer, char *PLID){
 }
 
 
-void state(char* hostname, char* port, char *buffer, char *PLID){
+void state(char* hostname, char* port, char *buffer, char *PLID, int *trial_number){
     sprintf(buffer, "STA %s\n", PLID);
 
     createTCPsocket(hostname, port);
@@ -478,10 +485,12 @@ void state(char* hostname, char* port, char *buffer, char *PLID){
     if(!strcmp(buffer, "RST")){
         if(!readUntilSpace(buffer))
             return;
-        if(!strcmp(buffer, "ACT") || !strcmp(buffer, "FIN")){
+        if(!strcmp(buffer, "ACT")){
             readFile(1, buffer);
-        }
-        else if(!strcmp(buffer, "NOK")){
+        } else if(!strcmp(buffer, "FIN")){
+            readFile(1, buffer);
+            *trial_number = 0;
+        } else if(!strcmp(buffer, "NOK")){
             printf(NO_STATE);
         } else if(!strcmp(buffer, "ERR"))
             printf(ERROR);

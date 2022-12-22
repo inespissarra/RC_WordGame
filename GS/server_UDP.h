@@ -38,6 +38,7 @@ void getState(FILE *fp, char *word, char *move, int state[4], char current_code)
 void move(char *filename, char *move, char code, char *PLID, int trial_number);
 void validMove(char *word, char *move, char code, int state[4], char *PLID, char *filename);
 void play(int verbose);
+void toLowerCase(char str[]);
 void guess(int verbose);
 void quit(int verbose);
 void finishGame(char *PLID, char *filename, char state);

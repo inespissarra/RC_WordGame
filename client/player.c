@@ -77,7 +77,7 @@ int main(int argc, char** argv){
                 printf(NO_GAME);
         else if(!strcmp(command, "state") || !strcmp(command, "st"))
             if(PLID[0]!='\0')
-                state(hostname, port, buffer, PLID);
+                state(hostname, port, buffer, PLID, &trial_number);
             else
                 printf(NO_PLID);
         else if(!strcmp(command, "quit") || !strcmp(command, "q")){

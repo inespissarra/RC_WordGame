@@ -61,7 +61,6 @@ int main(int argc, char** argv){
 void INThandler(int sig){
     signal(sig, SIG_IGN);
     while(kill(0, SIGKILL)!=0);
-    kill(0, SIGKILL);
     printf(BYE_SERVER);
     exit(0);
 }

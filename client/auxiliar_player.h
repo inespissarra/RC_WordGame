@@ -24,10 +24,12 @@ int readUntilSpace(char *ptr);
 int isNumeric(char *str);
 void start(char* hostname, char* port, char *buffer, char *PLID, char *game, int *trial_number, int *erros_restantes);
 void play(char* hostname, char* port, char *buffer, char *PLID, char *game, int *trial_number, int *erros_restantes);
+int validGuess(char* word);
+void toLowerCase(char *str);
 void guess(char* hostname, char* port, char *buffer, char *PLID, int *trial_number, int *erros_restantes);
 void scoreboard(char* hostname, char* port, char *buffer, char *PLID);
 void hint(char* hostname, char* port, char *buffer, char *PLID);
-void state(char* hostname, char* port, char *buffer, char *PLID);
+void state(char* hostname, char* port, char *buffer, char *PLID, int *trial_number);
 void quit(char* hostname, char* port, char *buffer, char *PLID, int *trial_number);
 
 

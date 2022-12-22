@@ -15,6 +15,7 @@ function run_server() {
 }
 
 function run_command() {
+    echo $MY_IP
     echo "Testing $1"
     FILE_NAME=$(basename $1 .txt)
     TEST=$(echo $FILE_NAME | cut -d'_' -f2)

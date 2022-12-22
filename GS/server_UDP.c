@@ -319,6 +319,8 @@ void play(int verbose){
 
     n_UDP = sscanf(buffer_UDP + 4, "%s %s %d%c", PLID, letter, &trial_number, &n);
 
+    letter[0] = tolower(letter[0]);
+
     if(n_UDP==4 && n=='\n' && strlen(PLID) == MAX_PLID_SIZE && isNumericUDP(PLID) && isalpha(letter[0])){
         // Correct format
         if(verbose)
@@ -347,12 +349,20 @@ void play(int verbose){
     sendtoUDP();
 }
 
+void toLowerCase(char str[]){
+    for(int i=0; i<strlen(str); i++){
+        str[i] = tolower(str[i]);
+    }
+}
+
 
 void guess(int verbose){
     int trial_number;
     char PLID[MAX_PLID_SIZE + 1], guess[MAX_WORD_LENGTH + 1], n;
 
     n_UDP = sscanf(buffer_UDP + 4, "%s %s %d%c", PLID, guess, &trial_number, &n);
+
+    toLowerCase(guess);
 
     if(n_UDP==4 && n=='\n' && strlen(PLID) == MAX_PLID_SIZE && isNumericUDP(PLID) && strlen(guess) <= MAX_WORD_LENGTH && strlen(guess) >= MIN_WORD_LENGTH && validGuess(guess)){
         // Correct format
