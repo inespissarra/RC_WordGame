@@ -308,7 +308,7 @@ void play(char* hostname, char* port, char *buffer, char *PLID, char *game, int 
             i = sscanf(ptr, "%d%c", &trial, &n);
             if(i!=2 || n!='\n')
                 printf(FORMAT_ERROR);
-            else if (trial != ((*trial_number)))
+            else if (trial + 1 != ((*trial_number)))
                 printf(INVALID_TRIAL);
             else
                 printf(DUP_PLAY);
@@ -397,6 +397,16 @@ void guess(char* hostname, char* port, char *buffer, char *PLID, int *trial_numb
                 *trial_number = *trial_number + 1;
             }
 
+        } else if(!strcmp(buf, "DUP")){
+            ptr += 4;
+            i = sscanf(ptr, "%d%c", &trial, &n);
+            if(i!=2 || n!='\n')
+                printf(FORMAT_ERROR);
+            else if (trial + 1 != ((*trial_number)))
+                printf(INVALID_TRIAL);
+            else
+                printf(DUP_GUESS);
+        
         } else if(!strcmp(buf, "OVR")){
             ptr += 4;
             i = sscanf(ptr, "%d%c", &trial, &n);
