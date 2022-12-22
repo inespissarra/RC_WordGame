@@ -337,6 +337,7 @@ void play(char* hostname, char* port, char *buffer, char *PLID, char *game, int 
         printf(FORMAT_ERROR);
 }
 
+
 int validGuess(char* word){
     for(int i = 0; i < strlen(word); i++){
         if(!isalpha(word[i])){

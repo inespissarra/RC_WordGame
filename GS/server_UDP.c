@@ -176,6 +176,7 @@ void start(char *word_file, int verbose){
 
 
 int countDiffChar(char word[MAX_WORD_LENGTH + 1]){
+    // count the number of different characters in a word
     char unique[MAX_WORD_LENGTH + 1];
     int length = strlen(word);
     int n_unique = 0;
@@ -208,6 +209,7 @@ void getCommand(char code, char *command){
 
 
 void getState(FILE *fp, char *word, char *move, int state[4], char current_code){
+    // get trials number, correct trials number, incorrect trials number from a GAME file
     int n_trials = 1, errors = 0, corrects=0, dup = 0;
     char previous[MAX_WORD_LENGTH + 1], code;
     while(fgets(buffer_UDP, MAX_READ_SIZE, fp) != NULL){
@@ -257,6 +259,7 @@ void move(char *filename, char *move, char code, char *PLID, int trial_number){
         else if(state[DUP])
             sprintf(buffer_UDP, "%s DUP %d\n", command, state[N_TRIALS]);
         else{
+            // add the move
             fp = fopen(filename, "a");
             sprintf(buffer_UDP, "%c %s\n", code, move);
             fputs(buffer_UDP, fp);
@@ -323,11 +326,10 @@ void play(int verbose){
         char filename[MAX_FILENAME_SIZE + strlen(FOLDER_GAMES) + 1];
         sprintf(filename, "%sGAME_%s.txt", FOLDER_GAMES, PLID);
         if (access(filename, F_OK))
+            // there is not any ongoing game
             sprintf(buffer_UDP, "ERR\n");
-        else{
-            sprintf(filename, "%sGAME_%s.txt", FOLDER_GAMES, PLID);
+        else
             move(filename, letter, 'T', PLID, trial_number);
-        }
         
     } else{
         if(verbose)
@@ -360,20 +362,18 @@ void guess(int verbose){
 
     if(n_UDP==4 && n=='\n' && strlen(PLID) == MAX_PLID_SIZE && isNumericUDP(PLID) && strlen(guess) <= MAX_WORD_LENGTH && strlen(guess) >= MIN_WORD_LENGTH && validGuess(guess)){
         // Correct format
-
         if(verbose)
             printVerbose("PWG", PLID, guess, trial_number);
 
         char filename[MAX_FILENAME_SIZE + strlen(FOLDER_GAMES) + 1];
         sprintf(filename, "%sGAME_%s.txt", FOLDER_GAMES, PLID);
         if (access(filename, F_OK)){
-            printf("here\n");
+            // there is not any ongoing game
             sprintf(buffer_UDP, "ERR\n");}
 
-        else{
-            sprintf(filename, "%sGAME_%s.txt", FOLDER_GAMES, PLID);
+        else
             move(filename, guess, 'G', PLID, trial_number);
-        }
+        
     } else {
         if(verbose)
             printVerbose(NULL, NULL, NULL, -1);
