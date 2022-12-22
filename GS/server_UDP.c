@@ -72,12 +72,6 @@ void UDP_connect(char *port){
         printf("ERROR\n");
         exit(1);
     }
-
-    struct timeval timeout;
-    timeout.tv_sec = TIMEOUT;
-    timeout.tv_usec = 0;
-    setsockopt(fd_UDP, SOL_SOCKET, SO_SNDTIMEO, (const char *) &timeout, sizeof(timeout));
-    setsockopt(fd_UDP, SOL_SOCKET, SO_RCVTIMEO, (const char *) &timeout, sizeof(timeout));
 }
 
 void sendtoUDP(){

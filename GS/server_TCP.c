@@ -33,12 +33,6 @@ void TCP_command(char *port, int verbose){
         if(c1_pid == 0){
             // child process
             char *ptr = buffer_TCP;
-
-            struct timeval timeout;
-            timeout.tv_sec = TIMEOUT;
-            timeout.tv_usec = 0;
-            setsockopt(newfd_TCP, SOL_SOCKET, SO_SNDTIMEO, (const char *) &timeout, sizeof(timeout));
-            setsockopt(newfd_TCP, SOL_SOCKET, SO_RCVTIMEO, (const char *) &timeout, sizeof(timeout));
     
             do {
                 n_TCP= read(newfd_TCP, ptr, 1);
