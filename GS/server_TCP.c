@@ -37,7 +37,7 @@ void TCP_command(char *port, int verbose){
             do {
                 n_TCP= read(newfd_TCP, ptr, 1);
                 if(n_TCP== -1){
-                    printf("ERROR\n");
+                    printf(RECEIVE_FAILED);
                     exit(1);
                 }
                 ptr+=n_TCP;
@@ -197,7 +197,7 @@ int readPLID(char *PLID, int verbose){
     while(n_TCP > 0){
         n_TCP = read(newfd_TCP, ptr, n_left);
         if(n_TCP == -1){
-            printf("ERROR\n");
+            printf(RECEIVE_FAILED);
             exit(1);
         }
         ptr += n_TCP;
@@ -207,7 +207,7 @@ int readPLID(char *PLID, int verbose){
     n_TCP = 0;
     while((n_TCP = read(newfd_TCP, buffer_TCP, 1))==0){ 
         if(n_TCP == -1){
-            printf("ERROR\n");
+            printf(RECEIVE_FAILED);
             exit(1);
         }
     }
