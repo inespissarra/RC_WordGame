@@ -68,8 +68,8 @@ void UDP_connect(char *port){
     if(n_UDP == -1){
         if(errno==EADDRINUSE){
             printf(ADDRESS_USED);
-        }
-        printf("ERROR\n");
+        } else
+            printf("ERROR\n");
         exit(1);
     }
 }

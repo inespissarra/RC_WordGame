@@ -13,7 +13,7 @@ O objetivo deste projeto é desenvolver um jogo de palavras simples, inspirado n
 
 ## Como executar:
 - Player: dentro da diretoria raiz (/RC_Word_Game) executar o comando ./client/player [-n GSIP] [-p GSport]. Os dois argumentos são opcionais, e correspondem ao IP onde é corrido o server e ao port do mesmo, respetivamente.
-- Server: **dentro da diretoria raiz (RC_Word_Game, é importante se seja executado dentro desta)** executar o comando ./GS/server [-p GSport] [-v]. Os dois argumentos são opcionais, correspondendo ao port do server e à opção de verbose (server vai dando print do que acontece).
+- Server: **dentro da diretoria raiz (RC_Word_Game, é importante se seja executado dentro desta)** executar o comando ./GS/server word_eng.txt [-p GSport] [-v]. O primeiro argumento corresponde ao ficheiro com as palavras dos jogos situado em /RC_Word_Game/GS/Dados_GS. O segundo elemento e o terceiro elemento são opcionais, correspondendo ao port do server e à opção de verbose (server vai dando print do que acontece).
 
 **ATENÇÃO!** Foram retirados os ficheiros correspondentes às imagens do comando _hint_ por simplificação. Antes de executar o programa, os ficheiros devem ser colocados dentro da diretoria /RC_Word_Game/GS/Dados_GS . É importante que estes sejam colocados na diretoria em questão para o funcionamento do programa.
 

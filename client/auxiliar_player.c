@@ -151,7 +151,7 @@ void readFile(int command, char *buffer){
     fclose(fp);
     while((n = read(fd, buffer, 1))==0){
         if(n == -1){
-            printf("ERROR\n");
+            printf(RECEIVE_FAILED);
             exit(1);
         }
     }
