@@ -10,7 +10,7 @@
 #define MAX_COMMAND_SIZE 3
 #define MAX_PLAYER_STATE_SIZE 37
 #define MAX_HOSTNAME_SIZE 253
-#define TIMEOUT 10
+#define TIMEOUT 15
 
 #define HINT 0
 #define SCOREBOARD 1

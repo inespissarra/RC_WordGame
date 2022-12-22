@@ -41,8 +41,19 @@ int main(int argc, char** argv){
     printf("Welcome to Word Game :D\n");
 
     char command[10];
+    fd_set readfds;
+    int counter;
     while(1){
-        // Read command
+
+        FD_ZERO(&readfds);
+        FD_SET(0, &readfds);
+        counter = select(1, &readfds, NULL, NULL, NULL);
+        if(counter == -1){
+            fprintf(stderr, "error: %s\n", strerror(errno));
+            exit(1);
+        }
+        if(FD_ISSET(0, &readfds)){
+            // Read command
         scanf("%s", command);
         if(!strcmp(command, "start") || !strcmp(command, "sg"))
             start(hostname, port, buffer, PLID, game, &trial_number, &erros_restantes);
@@ -87,6 +98,7 @@ int main(int argc, char** argv){
         }
         else
             printf(INVALID_COMMAND);
+        }
     }
 }
 

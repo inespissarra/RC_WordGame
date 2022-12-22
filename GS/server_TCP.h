@@ -17,6 +17,7 @@
 #include <sys/dir.h>
 #include <dirent.h>
 #include <ctype.h>
+#include <signal.h>
 
 #include "constants.h"
 

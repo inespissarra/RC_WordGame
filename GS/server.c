@@ -24,6 +24,19 @@ int main(int argc, char** argv){
     }
 
     signal(SIGINT, INThandler);
+
+    if(atoi(port) < 1024 || atoi(port) > 65535){
+        fprintf(stderr, "error: invalid port number\n");
+        exit(1);
+    }
+
+    struct sigaction act;
+    memset(&act, 0, sizeof act);
+    act.sa_handler = SIG_IGN;
+    if(sigaction(SIGCHLD, &act, NULL)==-1){
+        perror("sigaction");
+        exit(1);
+    }
     
     pid_t c1_pid, c2_pid, wpid;
     int status;
