@@ -244,8 +244,10 @@ void move(char *filename, char *move, char code, char *PLID, int trial_number){
         fclose(fp);
 
         if (state[N_TRIALS] != trial_number){
-            if(state[N_TRIALS]-1==trial_number && state[DUP])
+            if(state[N_TRIALS]-1==trial_number && state[DUP]){
+                state[N_TRIALS]--;
                 validMove(word, move, code, state, PLID, filename);
+            }
             else
                 sprintf(buffer_UDP, "%s INV %d\n", command, state[N_TRIALS]);
         }

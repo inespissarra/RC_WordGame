@@ -159,8 +159,17 @@ void writeFile(char *filename, char *buffer_TCP){
     fclose(fp);
 }
 
+int isNumeric(char *str){
+    while(*str){
+        if(!isdigit(*str))
+            return 0;
+        str++;
+    }
+    return 1;
+}
 
-void readPLID(char *PLID, int verbose){
+
+int readPLID(char *PLID, int verbose){
     int n_left = MAX_PLID_SIZE;
     char *ptr = PLID;
     while(n_TCP > 0){
@@ -180,31 +189,40 @@ void readPLID(char *PLID, int verbose){
             exit(1);
         }
     }
+    if(buffer_TCP[0] != '\n' || strlen(PLID) != MAX_PLID_SIZE || !isNumeric(PLID)){
+        return 0;
+    }
     if (verbose)
         printf("PLID: %s\n", PLID);
+    return 1;
 }
 
 void hint(int verbose){
     char PLID[MAX_PLID_SIZE + 1];
-    readPLID(PLID, verbose);
-    FILE *fp;
-    char filename[MAX_FILENAME_SIZE + strlen(FOLDER_GAMES) + 1];
-    sprintf(filename, "%sGAME_%s.txt", FOLDER_GAMES, PLID);
-    
-    if((fp = fopen(filename, "r")) != NULL){
-        // read the first line: word hint_file
-        fgets(buffer_TCP, MAX_READ_SIZE, fp);
-        fclose(fp);
+    if(readPLID(PLID, verbose)){
+        readPLID(PLID, verbose);
+        FILE *fp;
+        char filename[MAX_FILENAME_SIZE + strlen(FOLDER_GAMES) + 1];
+        sprintf(filename, "%sGAME_%s.txt", FOLDER_GAMES, PLID);
+        
+        if((fp = fopen(filename, "r")) != NULL){
+            // read the first line: word hint_file
+            fgets(buffer_TCP, MAX_READ_SIZE, fp);
+            fclose(fp);
 
-        sscanf(buffer_TCP, "%*s %s", filename);
-        sprintf(buffer_TCP, "RHL OK ");
+            sscanf(buffer_TCP, "%*s %s", filename);
+            sprintf(buffer_TCP, "RHL OK ");
 
-        writeToTCP(buffer_TCP, strlen(buffer_TCP));
+            writeToTCP(buffer_TCP, strlen(buffer_TCP));
 
-        writeFile(filename, buffer_TCP);
+            writeFile(filename, buffer_TCP);
 
-    } else {
-        sprintf(buffer_TCP, "RHL NOK\n");
+        } else {
+            sprintf(buffer_TCP, "RHL NOK\n");
+            writeToTCP(buffer_TCP, strlen(buffer_TCP));
+        }
+    } else{
+        sprintf(buffer_TCP, "RHL ERR\n");
         writeToTCP(buffer_TCP, strlen(buffer_TCP));
     }
 }
@@ -272,11 +290,9 @@ int findLastGame(char *PLID, char *filename){
         return (0);
     else{
         while (n_entries--){
-            printf("n_entries=%d\n", n_entries);
             if (filelist[n_entries]->d_name[0] != '.'){
                 char dname[MAX_FILENAME_SIZE + 1];
                 strcpy(dname, filelist[n_entries]->d_name);
-                printf("dname=%s\n", dname);
                 sprintf(filename, "%s%s/%s", FOLDER_GAMES, PLID, dname);
                 found = 1;
             }
@@ -331,7 +347,6 @@ void createStateFile(char *PLID, char *filename, char file[MAX_FILE_SIZE + 1], i
     }
 
     else{
-        printf("yeah\n");
         sscanf(filename + strlen(FOLDER_GAMES) + MAX_PLID_SIZE + strlen("YYYYMMDD_HHMMSS_") + 1, "%c", &code);
         if (code == 'W')
             sprintf(buffer_TCP, "     Termination: WIN\n");
@@ -351,23 +366,27 @@ void createStateFile(char *PLID, char *filename, char file[MAX_FILE_SIZE + 1], i
 void state(int verbose){
     char filename[MAX_FILENAME_SIZE + strlen(FOLDER_GAMES) + 1], state_filename[MAX_FILENAME_SIZE + 1];
     char PLID[MAX_PLID_SIZE+1], response[MAX_READ_SIZE+MAX_FILE_SIZE + 1];
-    readPLID(PLID, verbose);
-    sprintf(filename, "%sGAME_%s.txt", FOLDER_GAMES, PLID);
-    sprintf(state_filename, "STATE_%s.txt", PLID);
-    char statefile[MAX_FILE_SIZE + 1];
 
-    if(!access(filename, F_OK)){ 
-        createStateFile(PLID, filename, statefile, 1);
-        sprintf(response, "RST ACT %s %zd %s\n", state_filename, strlen(statefile), statefile);
-    }
-    else {
-        int found = findLastGame(PLID, filename);
-        if (found){
-            createStateFile(PLID, filename, statefile, 0);
-            sprintf(response, "RST FIN %s %zd %s\n", state_filename, strlen(statefile), statefile);
+    if(readPLID(PLID, verbose)){
+        sprintf(filename, "%sGAME_%s.txt", FOLDER_GAMES, PLID);
+        sprintf(state_filename, "STATE_%s.txt", PLID);
+        char statefile[MAX_FILE_SIZE + 1];
+
+        if(!access(filename, F_OK)){ 
+            createStateFile(PLID, filename, statefile, 1);
+            sprintf(response, "RST ACT %s %zd %s\n", state_filename, strlen(statefile), statefile);
         }
-        else
-            sprintf(response, "RST NOK\n");
+        else {
+            int found = findLastGame(PLID, filename);
+            if (found){
+                createStateFile(PLID, filename, statefile, 0);
+                sprintf(response, "RST FIN %s %zd %s\n", state_filename, strlen(statefile), statefile);
+            }
+            else
+                sprintf(response, "RST NOK\n");
+        }
+    } else{
+        sprintf(response, "RST ERR\n");
     }
 
     writeToTCP(response, strlen(response));

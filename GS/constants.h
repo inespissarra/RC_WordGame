@@ -12,9 +12,9 @@
 #define MAX_PLAYER_STATE_SIZE 37
 #define MAX_FILE_SIZE 1024^3
 #define TIMEOUT 5000
-#define FOLDER_GAMES "GAMES/"
-#define FOLDER_SCORES "SCORES/"
-#define FOLDER_DATA "Dados_GS/"
+#define FOLDER_GAMES "GS/GAMES/"
+#define FOLDER_SCORES "GS/SCORES/"
+#define FOLDER_DATA "GS/Dados_GS/"
 
 #define BYE_SERVER "Server is shutting down\n"
 
