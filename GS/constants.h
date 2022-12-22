@@ -11,11 +11,16 @@
 #define MAX_COMMAND_SIZE 3
 #define MAX_PLAYER_STATE_SIZE 37
 #define MAX_FILE_SIZE 1024^3
-#define TIMEOUT 5000
+#define TIMEOUT 1000
 #define FOLDER_GAMES "GS/GAMES/"
 #define FOLDER_SCORES "GS/SCORES/"
 #define FOLDER_DATA "GS/Dados_GS/"
 
 #define BYE_SERVER "Server is shutting down\n"
+
+#define SEND_FAILED "Failed to send message to server\n"
+#define RECEIVE_FAILED "Failed to receive message from server\n"
+
+#define ADDRESS_USED "The address is already in use\n"
 
 #endif

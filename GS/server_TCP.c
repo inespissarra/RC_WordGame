@@ -54,7 +54,7 @@ void TCP_command(char *port, int verbose){
             }
 
             if(!strcmp(buffer_TCP, "GSB")){
-                scoreboard();
+                scoreboard(verbose);
             } else if(!strcmp(buffer_TCP, "GHL")){
                 hint(verbose);
             } else if(!strcmp(buffer_TCP, "STA")){
@@ -62,7 +62,7 @@ void TCP_command(char *port, int verbose){
             } else{
                 // Invalid command
                 sprintf(buffer_TCP, "ERR\n");
-                writeToTCP(buffer_TCP, 4);
+                writeToTCP(buffer_TCP, 4, verbose);
             }
             if(verbose)
                 printf("----------------------\n\n");
@@ -95,6 +95,9 @@ void TCP_OpenSocket(char *port){
         printf("ERROR\n");
         exit(1);
     }
+
+    if (setsockopt(fd_TCP, SOL_SOCKET, SO_REUSEADDR, &(int){1}, sizeof(int)) < 0)
+        perror("setsockopt(SO_REUSEADDR) failed");
     
     n_TCP= bind(fd_TCP, res_TCP->ai_addr, res_TCP->ai_addrlen);
     if(n_TCP== -1){
@@ -109,19 +112,20 @@ void TCP_OpenSocket(char *port){
 }
 
 
-void writeToTCP(char *ptr, int to_write){
+int writeToTCP(char *ptr, int to_write, int verbose){
     while((n_TCP = write(newfd_TCP, ptr, to_write))!=0){
         if(n_TCP == -1){
-            printf("ERROR\n");
-            exit(1);
+            printf(SEND_FAILED);
+            return 0;
         } 
         ptr += n_TCP;
         to_write -= n_TCP;
     }
+    return 1;
 }
 
 
-void writeFile(char *filename, char *buffer_TCP){
+int writeFile(char *filename, char *buffer_TCP, int verbose){
     char imagename[MAX_FILENAME_SIZE + strlen(FOLDER_DATA) + 1];
     sprintf(imagename, "%s%s", FOLDER_DATA, filename);
 
@@ -137,7 +141,13 @@ void writeFile(char *filename, char *buffer_TCP){
 
     // send filename and filesize
     sprintf(buffer_TCP, "%s %d ", filename, size);
-    writeToTCP(buffer_TCP, strlen(buffer_TCP));
+    if(!writeToTCP(buffer_TCP, strlen(buffer_TCP), 0)){
+        fclose(fp);
+        return 0;
+    }
+
+    if(verbose)
+        printf("Sent: %s\n", buffer_TCP);
 
     fp = fopen(imagename, "r");
     if(fp == NULL){
@@ -149,14 +159,21 @@ void writeFile(char *filename, char *buffer_TCP){
     // send file's content
     while (size > 0){
         n = fread(buffer_TCP, 1, MAX_READ_SIZE, fp);
-        writeToTCP(buffer_TCP, n);
+        if(!writeToTCP(buffer_TCP, n, 0)){
+            fclose(fp);
+            return 0;
+        }
         size -= n;
     }
     buffer_TCP[0] = '\n';
 
-    writeToTCP(buffer_TCP, 1);
+    if(!writeToTCP(buffer_TCP, 1, 0)){
+        fclose(fp);
+        return 0;
+    }
 
     fclose(fp);
+    return 1;
 }
 
 int isNumericTCP(char *str){
@@ -200,7 +217,6 @@ int readPLID(char *PLID, int verbose){
 void hint(int verbose){
     char PLID[MAX_PLID_SIZE + 1];
     if(readPLID(PLID, verbose)){
-        readPLID(PLID, verbose);
         FILE *fp;
         char filename[MAX_FILENAME_SIZE + strlen(FOLDER_GAMES) + 1];
         sprintf(filename, "%sGAME_%s.txt", FOLDER_GAMES, PLID);
@@ -213,17 +229,21 @@ void hint(int verbose){
             sscanf(buffer_TCP, "%*s %s", filename);
             sprintf(buffer_TCP, "RHL OK ");
 
-            writeToTCP(buffer_TCP, strlen(buffer_TCP));
+            if(verbose)
+                printf("Sent: %s", buffer_TCP);
 
-            writeFile(filename, buffer_TCP);
+            if(!writeToTCP(buffer_TCP, strlen(buffer_TCP), verbose) || !writeFile(filename, buffer_TCP, verbose))
+                return;
 
         } else {
             sprintf(buffer_TCP, "RHL NOK\n");
-            writeToTCP(buffer_TCP, strlen(buffer_TCP));
+            if(!writeToTCP(buffer_TCP, strlen(buffer_TCP), verbose))
+                return;
         }
     } else{
         sprintf(buffer_TCP, "RHL ERR\n");
-        writeToTCP(buffer_TCP, strlen(buffer_TCP));
+        if(!writeToTCP(buffer_TCP, strlen(buffer_TCP), verbose))
+            return;
     }
 }
 
@@ -261,7 +281,7 @@ int findTopScores(char sb_file[MAX_FILE_SIZE + 1]){
     return i_file;
 }
 
-void scoreboard(){
+void scoreboard(int verbose){
     char sb_file[MAX_FILE_SIZE + 1], response[MAX_READ_SIZE+MAX_FILE_SIZE + 1];
     int n_scores = findTopScores(sb_file);
 
@@ -272,7 +292,11 @@ void scoreboard(){
         sprintf(response, "RSB OK TOPSCORES_%07d.txt %zu %s\n", getppid(), strlen(sb_file), sb_file);
     }
 
-    writeToTCP(response, strlen(response));
+    if(verbose)
+        printf("Sent: %s\n", response);
+
+    if(!writeToTCP(response, strlen(response), verbose))
+        return;
 }
 
 
@@ -389,5 +413,9 @@ void state(int verbose){
         sprintf(response, "RST ERR\n");
     }
 
-    writeToTCP(response, strlen(response));
+    if(verbose)
+        printf("Sent: %s\n", response);
+
+    if(!writeToTCP(response, strlen(response), verbose))
+        return;
 }

@@ -29,7 +29,14 @@ int main(int argc, char** argv){
             strcpy(hostname, buffer);
     }
 
+    if(atoi(port) < 1024 || atoi(port) > 65535){
+        fprintf(stderr, "error: invalid port number\n");
+        exit(1);
+    }
+
     signal(SIGINT, INThandler);
+
+    PLID[0] = '\0';
 
     printf("Welcome to Word Game :D\n");
 
@@ -40,16 +47,28 @@ int main(int argc, char** argv){
         if(!strcmp(command, "start") || !strcmp(command, "sg"))
             start(hostname, port, buffer, PLID, game, &trial_number, &erros_restantes);
         else if(!strcmp(command, "play") || !strcmp(command, "pl")){
-            play(hostname, port, buffer, PLID, game, &trial_number, &erros_restantes);
+            if(trial_number>0)
+                play(hostname, port, buffer, PLID, game, &trial_number, &erros_restantes);
+            else
+                printf(NO_GAME);
         }
         else if(!strcmp(command, "guess") || !strcmp(command, "gw"))
-            guess(hostname, port, buffer, PLID, &trial_number, &erros_restantes);
+            if(trial_number>0)
+                guess(hostname, port, buffer, PLID, &trial_number, &erros_restantes);
+            else
+                printf(NO_GAME);
         else if(!strcmp(command, "scoreboard") || !strcmp(command, "sb"))
             scoreboard(hostname, port, buffer, PLID);
         else if(!strcmp(command, "hint") || !strcmp(command, "h"))
-            hint(hostname, port, buffer, PLID);
+            if(trial_number>0)
+                hint(hostname, port, buffer, PLID);
+            else
+                printf(NO_GAME);
         else if(!strcmp(command, "state") || !strcmp(command, "st"))
-            state(hostname, port, buffer, PLID);
+            if(PLID[0]!='\0')
+                state(hostname, port, buffer, PLID);
+            else
+                printf(NO_PLID);
         else if(!strcmp(command, "quit") || !strcmp(command, "q")){
             if(trial_number>0)
                 quit(hostname, port, buffer, PLID, &trial_number);

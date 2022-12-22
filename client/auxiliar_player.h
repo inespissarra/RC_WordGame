@@ -16,11 +16,11 @@
 void createUDPsocket(char* hostname, char* port);
 void createTCPsocket(char* hostname, char* port);
 void closeSocket();
-void sendAndReadUDP(char *buffer, char *hostname, char *port);
-void sendAndReadTCP(char *buffer);
+int sendAndReadUDP(char *buffer, char *hostname, char *port);
+int sendAndReadTCP(char *buffer);
 ssize_t readFromTCPsocket(char *buffer, ssize_t nleft);
 void readFile(int command, char *buffer);
-void readUntilSpace(char *ptr);
+int readUntilSpace(char *ptr);
 int isNumeric(char *str);
 void start(char* hostname, char* port, char *buffer, char *PLID, char *game, int *trial_number, int *erros_restantes);
 void play(char* hostname, char* port, char *buffer, char *PLID, char *game, int *trial_number, int *erros_restantes);

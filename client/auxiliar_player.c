@@ -61,28 +61,28 @@ void closeSocket(){
     close(fd);
 }
 
-void sendAndReadUDP(char *buffer, char *hostname, char *port){
+int sendAndReadUDP(char *buffer, char *hostname, char *port){
     createUDPsocket(hostname, port);
 
     n = sendto(fd, buffer, strlen(buffer), 0, res->ai_addr, res->ai_addrlen);
     if(n == -1){
-        fprintf(stderr, "error: %s\n", strerror(errno));
-        exit(1);
+        printf(SEND_FAILED);
+        return 0;
     }
-
 
     addrlen = sizeof(addr);
     n = recvfrom(fd, buffer, MAX_READ_SIZE, 0, (struct sockaddr*)&addr, &addrlen);
     if(n == -1){
-        fprintf(stderr, "error: %s\n", strerror(errno));
-        exit(1);
+        printf(RECEIVE_FAILED);
+        return 0;
     }
     buffer[n]='\0';
     
     closeSocket();
+    return 1;
 }
 
-void sendAndReadTCP(char *buffer){
+int sendAndReadTCP(char *buffer){
     n = connect(fd, res->ai_addr, res->ai_addrlen);
     if(n == -1){
         fprintf(stderr, "error: %s\n", strerror(errno));
@@ -94,13 +94,13 @@ void sendAndReadTCP(char *buffer){
     while(nleft>0){
         n = write(fd, ptr, strlen(buffer));
         if(n == -1){
-            fprintf(stderr, "error: %s\n", strerror(errno));
-            exit(1);
+            printf(SEND_FAILED);
+            return 0;
         }
         nleft-=n; ptr+=n;
     }
 
-    readUntilSpace(buffer);
+    return readUntilSpace(buffer);
 }
 
 ssize_t readFromTCPsocket(char *buffer, ssize_t nleft){
@@ -125,8 +125,8 @@ ssize_t readFromTCPsocket(char *buffer, ssize_t nleft){
 void readFile(int command, char *buffer){
     char filename[MAX_FILENAME_SIZE + 1], filesize_str[MAX_FSIZE_SIZE + 1];
 
-    readUntilSpace(filename);
-    readUntilSpace(filesize_str);
+    if(!readUntilSpace(filename) || !readUntilSpace(filesize_str))
+        return;
 
     ssize_t filesize = atoi(filesize_str);
 
@@ -164,16 +164,17 @@ void readFile(int command, char *buffer){
         printf(RECEIVED_SCOREBOARD, filename, filesize);
 }
 
-void readUntilSpace(char *ptr){
+int readUntilSpace(char *ptr){
     do {
         n = read(fd, ptr, 1);
         if(n == -1){
-            printf("ERROR\n");
-            exit(1);
+            printf(RECEIVE_FAILED);
+            return 0;
         }
         ptr+=n;
     } while(*(ptr-1)!=' ' && *(ptr-1)!='\n');
     *(ptr-1) = '\0';
+    return 1;
 }
 
 int isNumeric(char *str){
@@ -194,31 +195,45 @@ void start(char* hostname, char* port, char *buffer, char *PLID, char *game, int
 
     sprintf(buffer, "SNG %s\n", PLID);
 
-    sendAndReadUDP(buffer, hostname, port);
+    if(!sendAndReadUDP(buffer, hostname, port))
+        return;
 
     char buf1[4], buf2[4], n;
     int n_let, max_errors, i;
-    i = sscanf(buffer, "%s %s %d %d%c", buf1, buf2, &n_let, &max_errors, &n);
-    *errors = max_errors;
-    if(i==5 && n=='\n' && !strcmp(buf1, "RSG")){
+    i = sscanf(buffer, "%s %s ", buf1, buf2);
+    if(i==2 && !strcmp(buf1, "RSG")){
         if(!strcmp(buf2, "OK")){
-            memset(game, '_', n_let);
-            game[n_let] = '\0';
-            printf(NEW_GAME, *errors, game);
-            *trial_number = 1;
+            i = sscanf(buffer, "%*s %*s %d %d%c",&n_let, &max_errors, &n);
+            if(i==3 && n=='\n'){
+                *errors = max_errors;
+                memset(game, '_', n_let);
+                game[n_let] = '\0';
+                printf(NEW_GAME, *errors, game);
+                *trial_number = 1;
+                return;
+            }
         }
-        else if(!strcmp(buf2, "NOK"))
-            printf(GAME_ALREADY_STARTED);
-        else if(!strcmp(buf2, "ERR"))
-            printf(ERROR);
-        else
-            printf(FORMAT_ERROR);
+        else if(!strcmp(buf2, "NOK")){
+            i = sscanf(buffer, "%*s %*s%c", &n);
+            if(n=='\n'){
+                printf(GAME_ALREADY_STARTED);
+                return;
+            }
+        } else if(!strcmp(buf2, "ERR"))
+            i = sscanf(buffer, "%*s %*s%c", &n);
+            if(n=='\n'){
+                printf(ERROR);
+                return;
+            }
     }
-    else if(!strcmp(buf1, "ERR"))
+    else if(!strcmp(buf1, "ERR")){
+        i = sscanf(buffer, "%*s%c", &n);
+        if(n=='\n'){
             printf(ERROR);
-    else{
-        printf(FORMAT_ERROR);
+            return;
+        }
     }
+    printf(FORMAT_ERROR);
 }
 
 
@@ -231,7 +246,8 @@ void play(char* hostname, char* port, char *buffer, char *PLID, char *game, int 
 
     sprintf(buffer, "PLG %s %c %d\n", PLID, letter, *trial_number);
 
-    sendAndReadUDP(buffer, hostname, port);
+    if(!sendAndReadUDP(buffer, hostname, port))
+        return;
 
     char buf[4], *ptr = buffer, n;
     int trial, i;
@@ -339,7 +355,8 @@ void guess(char* hostname, char* port, char *buffer, char *PLID, int *trial_numb
     }
     sprintf(buffer, "PWG %s %s %d\n", PLID, word, *trial_number);
 
-    sendAndReadUDP(buffer, hostname, port);
+    if(!sendAndReadUDP(buffer, hostname, port))
+        return;
 
     char buf[4], *ptr = buffer, n;
     int trial, i;
@@ -401,10 +418,12 @@ void scoreboard(char* hostname, char* port, char *buffer, char *PLID){
     sprintf(buffer, "GSB\n");
 
     createTCPsocket(hostname, port);
-    sendAndReadTCP(buffer);
+    if(!sendAndReadTCP(buffer))
+        return;
 
     if(!strcmp(buffer, "RSB")){
-        readUntilSpace(buffer);
+        if(!readUntilSpace(buffer))
+            return;
         if(!strcmp(buffer, "OK")){
             readFile(1, buffer);
         } else if(!strcmp(buffer, "EMPTY")){
@@ -427,10 +446,12 @@ void hint(char* hostname, char* port, char *buffer, char *PLID){
     sprintf(buffer, "GHL %s\n", PLID);
 
     createTCPsocket(hostname, port);
-    sendAndReadTCP(buffer);
+    if(!sendAndReadTCP(buffer))
+        return;
 
     if(!strcmp(buffer, "RHL")){
-        readUntilSpace(buffer);
+        if(!readUntilSpace(buffer))
+            return;
         if(!strcmp(buffer, "OK"))
             readFile(0, buffer);
         else if(!strcmp(buffer, "NOK"))
@@ -451,10 +472,12 @@ void state(char* hostname, char* port, char *buffer, char *PLID){
     sprintf(buffer, "STA %s\n", PLID);
 
     createTCPsocket(hostname, port);
-    sendAndReadTCP(buffer);
+    if(!sendAndReadTCP(buffer))
+        return;
 
     if(!strcmp(buffer, "RST")){
-        readUntilSpace(buffer);
+        if(!readUntilSpace(buffer))
+            return;
         if(!strcmp(buffer, "ACT") || !strcmp(buffer, "FIN")){
             readFile(1, buffer);
         }
@@ -477,7 +500,8 @@ void state(char* hostname, char* port, char *buffer, char *PLID){
 void quit(char* hostname, char* port, char *buffer, char *PLID, int *trial_number){
     sprintf(buffer, "QUT %s\n", PLID);
 
-    sendAndReadUDP(buffer, hostname, port);
+    if(!sendAndReadUDP(buffer, hostname, port))
+        return;
 
     char buf[4], n;
     sscanf(buffer, "%s ", buf);

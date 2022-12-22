@@ -10,7 +10,7 @@
 #define MAX_COMMAND_SIZE 3
 #define MAX_PLAYER_STATE_SIZE 37
 #define MAX_HOSTNAME_SIZE 253
-#define TIMEOUT 5000
+#define TIMEOUT 10
 
 #define HINT 0
 #define SCOREBOARD 1
@@ -37,6 +37,7 @@
 #define NO_SCORES "No game was yet won by any player\n"
 #define NO_HINT "No hint available\n"
 #define NO_STATE "No games active or finished for you :/\n"
+#define NO_PLID "No PLID was given\n"
 
 #define QUIT "Game over!\n"
 #define EXIT "Bye!\n"
@@ -45,6 +46,9 @@
 #define RECEIVED_HINT "Hint file received: %s Size: %zu\n"
 #define RECEIVED_SCOREBOARD "Scoreboard file received: %s Size: %zu\n"
 #define RECEIVED_STATE "State file received: %s Size: %zu\n"
+
+#define SEND_FAILED "Failed to send message to server\n"
+#define RECEIVE_FAILED "Failed to receive message from server\n"
 
 
 #endif

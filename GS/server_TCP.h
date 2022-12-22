@@ -22,13 +22,13 @@
 
 void TCP_command(char *port, int verbose);
 void TCP_OpenSocket(char *port);
-void writeFile(char *filename, char *buffer);
-void writeToTCP(char *ptr, int to_write);
+int writeFile(char *filename, char *buffer, int verbose);
+int writeToTCP(char *ptr, int to_write, int verbose);
 int isNumericTCP(char *str);
 int readPLID(char *PLID, int verbose);
 void hint(int verbose);
 int findTopScores(char sb_file[MAX_FILE_SIZE + 1]);
-void scoreboard();
+void scoreboard(int verbose);
 int findLastGame(char *PLID, char *filename);
 void createStateFile(char *PLID, char *filename, char *file, int status);
 void state(int verbose);

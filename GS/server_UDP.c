@@ -17,27 +17,27 @@ void UDP_command(char *word_file, char *port, int verbose){
         UDP_connect(port);
         addrlen_UDP = sizeof(addr_UDP);
         n_UDP = recvfrom(fd_UDP, buffer_UDP, MAX_READ_SIZE, 0, (struct sockaddr*)&addr_UDP, &addrlen_UDP);
-        if(n_UDP == -1){
-            printf("ERROR\n");
-            exit(1);
-        }
-        buffer_UDP[n_UDP] = '\0';
+        if(n_UDP == -1)
+            printf(RECEIVE_FAILED);
+        else{
+            buffer_UDP[n_UDP] = '\0';
 
-        sscanf(buffer_UDP, "%s", command);
-        if(!strcmp(command, "SNG")){
-            start(word_file, verbose);
-        } else if(!strcmp(command, "PLG")){
-            play(verbose);
-        } else if(!strcmp(command, "PWG")){
-            guess(verbose);
-        } else if(!strcmp(command, "QUT")){
-            quit(verbose);
-        } else{
-            sprintf(buffer_UDP, "ERR");
-            sendtoUDP();
+            sscanf(buffer_UDP, "%s", command);
+            if(!strcmp(command, "SNG")){
+                start(word_file, verbose);
+            } else if(!strcmp(command, "PLG")){
+                play(verbose);
+            } else if(!strcmp(command, "PWG")){
+                guess(verbose);
+            } else if(!strcmp(command, "QUT")){
+                quit(verbose);
+            } else{
+                sprintf(buffer_UDP, "ERR");
+                sendtoUDP();
+            }
+            freeaddrinfo(res_UDP);
+            close(fd_UDP);
         }
-        freeaddrinfo(res_UDP);
-        close(fd_UDP);
     }
 }
 
@@ -60,9 +60,15 @@ void UDP_connect(char *port){
         printf("ERROR\n");
         exit(1);
     }
+
+    if (setsockopt(fd_UDP, SOL_SOCKET, SO_REUSEADDR, &(int){1}, sizeof(int)) < 0)
+        perror("setsockopt(SO_REUSEADDR) failed");
     
     n_UDP = bind(fd_UDP, res_UDP->ai_addr, res_UDP->ai_addrlen);
     if(n_UDP == -1){
+        if(errno==EADDRINUSE){
+            printf(ADDRESS_USED);
+        }
         printf("ERROR\n");
         exit(1);
     }
@@ -77,8 +83,7 @@ void UDP_connect(char *port){
 void sendtoUDP(){
     n_UDP = sendto(fd_UDP, buffer_UDP, strlen(buffer_UDP), 0, (struct sockaddr*)&addr_UDP, addrlen_UDP);
     if(n_UDP == -1){
-        fprintf(stderr, "error: %s\n", strerror(errno));
-        exit(1);
+        printf(SEND_FAILED);
     }
 }
 
@@ -128,13 +133,13 @@ void start(char *word_file, int verbose){
         
         sprintf(buffer_UDP, "RSG ERR\n");
     } else {
-
         FILE *fp;
         char filename[MAX_FILENAME_SIZE + strlen(FOLDER_GAMES) + 1];
         sprintf(filename, "%sGAME_%s.txt", FOLDER_GAMES, PLID);
 
         if(verbose)
             printVerbose("SNG", PLID, NULL, -1);
+        printf("%s\n", buffer_UDP);
 
         if(!access(filename, F_OK)){ 
             // File exists
@@ -145,6 +150,10 @@ void start(char *word_file, int verbose){
             if(fgets(buffer_UDP, MAX_READ_SIZE, fp)!=NULL){
                 fclose(fp);
                 sprintf(buffer_UDP, "RSG NOK\n");
+                if(verbose){
+                    printf("\nSent: %s\n", buffer_UDP);
+                    printf("----------------------\n\n");
+                }
                 sendtoUDP();
                 return;
             }
@@ -289,6 +298,7 @@ void validMove(char *word, char *move, char code, int state[4], char *PLID, char
                     n++;
                 }
             }
+            indexes[strlen(indexes)-1] = '\0';
             sprintf(buffer_UDP, "%s OK %d %d %s\n", command, state[N_TRIALS], n, indexes);
         }
     } else {
