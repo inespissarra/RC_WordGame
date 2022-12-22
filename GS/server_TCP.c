@@ -100,7 +100,10 @@ void TCP_OpenSocket(char *port){
         perror("setsockopt(SO_REUSEADDR) failed");
     
     n_TCP= bind(fd_TCP, res_TCP->ai_addr, res_TCP->ai_addrlen);
-    if(n_TCP== -1){
+    if(n_TCP == -1){
+        if(errno==EADDRINUSE){
+            printf(ADDRESS_USED);
+        }
         printf("ERROR\n");
         exit(1);
     }
