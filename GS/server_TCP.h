@@ -16,6 +16,7 @@
 #include <sys/stat.h>
 #include <sys/dir.h>
 #include <dirent.h>
+#include <ctype.h>
 
 #include "constants.h"
 
@@ -23,8 +24,8 @@ void TCP_command(char *port, int verbose);
 void TCP_OpenSocket(char *port);
 void writeFile(char *filename, char *buffer);
 void writeToTCP(char *ptr, int to_write);
-int isNumeric(char *str);
-void readPLID(char *PLID, int verbose);
+int isNumericTCP(char *str);
+int readPLID(char *PLID, int verbose);
 void hint(int verbose);
 int findTopScores(char sb_file[MAX_FILE_SIZE + 1]);
 void scoreboard();

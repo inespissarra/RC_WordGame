@@ -99,7 +99,7 @@ void getNewWord(char *word_file){
     fclose(fp);
 }
 
-int isNumeric(char *str){
+int isNumericUDP(char *str){
     while(*str){
         if(!isdigit(*str))
             return 0;
@@ -122,7 +122,7 @@ void start(char *word_file, int verbose){
     char word[MAX_WORD_LENGTH + 1];
     char PLID[MAX_PLID_SIZE + 1], n;
 
-    if(sscanf(buffer_UDP + 4, "%s%c", PLID, &n)!=2 || n!='\n' || strlen(PLID) != MAX_PLID_SIZE || !isNumeric(PLID)){
+    if(sscanf(buffer_UDP + 4, "%s%c", PLID, &n)!=2 || n!='\n' || strlen(PLID) != MAX_PLID_SIZE || !isNumericUDP(PLID)){
         if(verbose)
             printVerbose(NULL, NULL, NULL, -1);
         
@@ -309,7 +309,7 @@ void play(int verbose){
 
     n_UDP = sscanf(buffer_UDP + 4, "%s %s %d%c", PLID, letter, &trial_number, &n);
 
-    if(n_UDP==4 && n=='\n' && strlen(PLID) == MAX_PLID_SIZE && isNumeric(PLID) && isalpha(letter[0])){
+    if(n_UDP==4 && n=='\n' && strlen(PLID) == MAX_PLID_SIZE && isNumericUDP(PLID) && isalpha(letter[0])){
         // Correct format
         if(verbose)
             printVerbose("PLG", PLID, letter, trial_number);
@@ -344,7 +344,7 @@ void guess(int verbose){
 
     n_UDP = sscanf(buffer_UDP + 4, "%s %s %d%c", PLID, guess, &trial_number, &n);
 
-    if(n_UDP==4 && n=='\n' && strlen(PLID) == MAX_PLID_SIZE && isNumeric(PLID) && strlen(guess) <= MAX_WORD_LENGTH && strlen(guess) >= MIN_WORD_LENGTH && validGuess(guess)){
+    if(n_UDP==4 && n=='\n' && strlen(PLID) == MAX_PLID_SIZE && isNumericUDP(PLID) && strlen(guess) <= MAX_WORD_LENGTH && strlen(guess) >= MIN_WORD_LENGTH && validGuess(guess)){
         // Correct format
 
         if(verbose)
@@ -378,7 +378,7 @@ void guess(int verbose){
 void quit(int verbose){
     char PLID[MAX_PLID_SIZE + 1], n;
 
-    if(sscanf(buffer_UDP + 4, "%s%c", PLID, &n)!=2 || n!='\n' || strlen(PLID) != MAX_PLID_SIZE || !isNumeric(PLID)){
+    if(sscanf(buffer_UDP + 4, "%s%c", PLID, &n)!=2 || n!='\n' || strlen(PLID) != MAX_PLID_SIZE || !isNumericUDP(PLID)){
         if(verbose)
             printVerbose(NULL, NULL, NULL, -1);
         sprintf(buffer_UDP, "RQT ERR\n");

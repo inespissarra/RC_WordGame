@@ -28,7 +28,7 @@ void UDP_command(char *word_file, char *port, int verbose);
 void UDP_connect(char *port);
 void sendtoUDP();
 void getNewWord(char *word_file);
-int isNumeric(char *str);
+int isNumericUDP(char *str);
 int validGuess(char* word);
 void start(char *word_file, int verbose);
 int countDiffChar(char word[MAX_WORD_LENGTH + 1]);

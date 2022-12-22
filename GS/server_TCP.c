@@ -159,7 +159,7 @@ void writeFile(char *filename, char *buffer_TCP){
     fclose(fp);
 }
 
-int isNumeric(char *str){
+int isNumericTCP(char *str){
     while(*str){
         if(!isdigit(*str))
             return 0;
@@ -189,7 +189,7 @@ int readPLID(char *PLID, int verbose){
             exit(1);
         }
     }
-    if(buffer_TCP[0] != '\n' || strlen(PLID) != MAX_PLID_SIZE || !isNumeric(PLID)){
+    if(buffer_TCP[0] != '\n' || strlen(PLID) != MAX_PLID_SIZE || !isNumericTCP(PLID)){
         return 0;
     }
     if (verbose)
