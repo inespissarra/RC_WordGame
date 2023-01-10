@@ -254,10 +254,10 @@ void move(char *filename, char *move, char code, char *PLID, int trial_number){
                 validMove(word, move, code, state, PLID, filename);
             }
             else
-                sprintf(buffer_UDP, "%s INV %d\n", command, state[N_TRIALS]);
+                sprintf(buffer_UDP, "%s INV %d\n", command, state[N_TRIALS] - 1);
         }
         else if(state[DUP])
-            sprintf(buffer_UDP, "%s DUP %d\n", command, state[N_TRIALS]);
+            sprintf(buffer_UDP, "%s DUP %d\n", command, state[N_TRIALS] - 1);
         else{
             // add the move
             fp = fopen(filename, "a");
