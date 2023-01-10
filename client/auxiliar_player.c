@@ -269,6 +269,8 @@ void play(char* hostname, char* port, char *buffer, char *PLID, char *game, int 
                 ptr += 4;
                 for(int j = 0; j<n_let; j++){
                     sscanf(ptr, "%s ", pos);
+                    if(atoi(pos) > strlen(game) || game[atoi(pos) - 1] != '_')
+                        printf(FORMAT_ERROR);
                     game[atoi(pos) - 1] = letter;
                     ptr += strlen(pos) + 1;
                 }
