@@ -133,7 +133,6 @@ void start(char *word_file, int verbose){
 
         if(verbose)
             printVerbose("SNG", PLID, NULL, -1);
-        printf("%s\n", buffer_UDP);
 
         if(!access(filename, F_OK)){ 
             // File exists
