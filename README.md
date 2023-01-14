@@ -5,6 +5,8 @@ Projeto da cadeira de Redes de Computadores de LEIC-A. (Ano 2022/2023)
 ## Objetivo:
 O objetivo deste projeto é desenvolver um jogo de palavras simples, inspirado no clássico jogo da forca.
 
+## Nota:
+19.5 - houve um desconto pela falta de duas verificações, mas estas verificações já foram acrescentadas ao código.
 
 ## Ficheiro Makefile e como Compilar:
 - make - Para compilar o projeto basta executar o comando make dentro da diretoria /RC_Word_Game. Este comando irá criar dois executáveis (um para o Server dentro da diretoria /GS, e outro para o player dentro da diretoria /client).
